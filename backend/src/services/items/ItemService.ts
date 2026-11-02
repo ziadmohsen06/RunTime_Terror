@@ -7,6 +7,9 @@ export class ItemService {
   constructor(private readonly repo: IItemRepository) {}
 
   async addItem(data: NewItem): Promise<Item> {
+    if (!Number.isInteger(data.userId) || data.userId <= 0) {
+      throw new ValidationError('Valid user ID is required');
+    }
     if (!data.name || !data.name.trim()) {
       throw new ValidationError('Item name is required');
     }
