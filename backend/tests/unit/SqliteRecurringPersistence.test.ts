@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { FakeClock } from '../helpers/FakeClock';
 import { DayOfWeek } from '../../src/domain/enums/DayOfWeek';
+import { OccurrenceStatus } from '../../src/domain/enums/OccurrenceStatus';
 import { SqliteOccurrenceRepository } from '../../src/repositories/implementations/SqliteOccurrenceRepository';
 import { SqliteRecurringTaskRepository } from '../../src/repositories/implementations/SqliteRecurringTaskRepository';
 import { SqliteReminderRepository } from '../../src/repositories/implementations/SqliteReminderRepository';
@@ -67,7 +68,7 @@ describe('SQLite recurring persistence', () => {
       userId: 1,
       periodKey: '2026-W45',
       dueDate: '2026-11-07',
-      status: 'PENDING' as const,
+      status: OccurrenceStatus.PENDING,
       createdAt: new Date('2026-11-02T10:00:00.000Z'),
     };
 
