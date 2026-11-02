@@ -13,6 +13,17 @@ export class ItemService {
     if (!data.category || !data.category.trim()) {
       throw new ValidationError('Item category is required');
     }
+    if (!data.color || !data.color.trim()) {
+  throw new ValidationError('Item color is required');
+}
+
+if (!data.season || !data.season.trim()) {
+  throw new ValidationError('Item season is required');
+}
+
+if (!data.fabric || !data.fabric.trim()) {
+  throw new ValidationError('Item fabric is required');
+}
     return this.repo.create({ ...data, name: data.name.trim() });
   }
 
