@@ -108,6 +108,26 @@ describe('Recurring tasks API (E2E)', () => {
     expect(response.status).toBe(404);
   });
 
+  it('returns 400 for non-numeric occurrence and reminder identifiers', async () => {
+    const app = createTestApp();
+
+    const occurrence = await request(app).post('/occurrences/not-a-number/complete').send();
+    const reminder = await request(app).post('/reminders/not-a-number/read').send();
+
+    expect(occurrence.status).toBe(400);
+    expect(reminder.status).toBe(400);
+  });
+
+  it('returns 404 for missing occurrence and reminder identifiers', async () => {
+    const app = createTestApp();
+
+    const occurrence = await request(app).post('/occurrences/999/complete').send();
+    const reminder = await request(app).post('/reminders/999/read').send();
+
+    expect(occurrence.status).toBe(404);
+    expect(reminder.status).toBe(404);
+  });
+
   it('rejects invalid run-check dates with the standard error shape', async () => {
     const response = await request(createTestApp(true))
       .post('/recurring-tasks/run-check')
