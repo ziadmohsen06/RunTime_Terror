@@ -3,4 +3,7 @@ export enum ItemStatus {
   CLEAN = 'clean',
   DIRTY = 'dirty',
   IN_LAUNDRY = 'in_laundry',
+  WASHING = 'washing',
+  DRYING = 'drying',
+  IRONING = 'ironing',
 }
