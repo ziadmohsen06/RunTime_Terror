@@ -31,5 +31,18 @@ export function initRecurringSchema(db: Database.Database): void {
       is_read INTEGER NOT NULL DEFAULT 0,
       created_at TEXT NOT NULL
     );
+
+    CREATE TABLE IF NOT EXISTS items (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    name TEXT NOT NULL,
+    category TEXT NOT NULL,
+    color TEXT NOT NULL,
+    season TEXT NOT NULL,
+    fabric TEXT NOT NULL,
+    photo_url TEXT,
+    status TEXT NOT NULL DEFAULT 'clean',
+    created_at TEXT NOT NULL
+  );
   `);
 }
