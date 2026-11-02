@@ -9,6 +9,7 @@ import { IReminderRepository } from '../../../src/repositories/interfaces/IRemin
 
 interface Fixture<T> {
   repository: T;
+  prepare?(): Promise<void>;
   cleanup(): void;
 }
 
@@ -20,7 +21,7 @@ const taskInput = {
   dayOfWeek: DayOfWeek.SATURDAY,
 };
 
-const occurrenceInput = (periodKey: string, recurringTaskId = 7) => ({
+const occurrenceInput = (periodKey: string, recurringTaskId = 1) => ({
   recurringTaskId,
   userId: 1,
   periodKey,
@@ -71,8 +72,9 @@ export function occurrenceRepositoryContract(
 ): void {
   describe(`${name} occurrence repository contract`, () => {
     let fixture: Fixture<IOccurrenceRepository>;
-    beforeEach(() => {
+    beforeEach(async () => {
       fixture = factory();
+      await fixture.prepare?.();
     });
     afterEach(() => fixture.cleanup());
 
@@ -124,15 +126,16 @@ export function reminderRepositoryContract(
 ): void {
   describe(`${name} reminder repository contract`, () => {
     let fixture: Fixture<IReminderRepository>;
-    beforeEach(() => {
+    beforeEach(async () => {
       fixture = factory();
+      await fixture.prepare?.();
     });
     afterEach(() => fixture.cleanup());
 
     it('creates and finds a reminder', async () => {
       const input: Omit<Reminder, 'id'> = {
         userId: 1,
-        occurrenceId: 9,
+        occurrenceId: 1,
         message: 'Laundry day is due on Saturday 2026-11-07',
         read: false,
         createdAt: new Date('2026-11-02T10:00:00.000Z'),
@@ -147,7 +150,7 @@ export function reminderRepositoryContract(
     it('returns the same row without duplicating a reminder for an occurrence', async () => {
       const input: Omit<Reminder, 'id'> = {
         userId: 1,
-        occurrenceId: 9,
+        occurrenceId: 1,
         message: 'Reminder',
         read: false,
         createdAt: new Date('2026-11-02T10:00:00.000Z'),
@@ -163,7 +166,7 @@ export function reminderRepositoryContract(
     it('persists reminder updates', async () => {
       const created = await fixture.repository.createIfNotExists({
         userId: 1,
-        occurrenceId: 9,
+        occurrenceId: 1,
         message: 'Reminder',
         read: false,
         createdAt: new Date('2026-11-02T10:00:00.000Z'),
