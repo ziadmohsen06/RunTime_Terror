@@ -1,7 +1,8 @@
 import { ItemService } from '../../src/services/items/ItemService';
 import { InMemoryItemRepository } from '../../src/repositories/implementations/InMemoryItemRepository';
 import { ValidationError } from '../../src/domain/errors/AppError';
-import { ItemStatus } from '../../src/domain/enums/ItemStatus';
+import { ItemStatus } from '../../src/domain/enums/ItemStatus';//added
+
 
 // User story (FR1): As a user, I want to filter my items by category, color,
 // and season so that I can quickly find what to wear.
@@ -93,7 +94,7 @@ describe('ItemService', () => {
   expect(result[0].name).toBe('Joudy T-shirt');
   });
 
-  it('filters items by multiple criteria', async () => {
+  it('filters items by multiple criteria', async () => {//passes
   await service.addItem({
     ...base,
     name: 'Blue Summer T-shirt',
@@ -128,7 +129,7 @@ describe('ItemService', () => {
   expect(result[0].name).toBe('Blue Summer T-shirt');
   });
 
-  it('filters items by status', async () => {
+  it('filters items by status', async () => {//failed
   await service.addItem({
     ...base,
     name: 'T-shirt',
@@ -141,4 +142,16 @@ describe('ItemService', () => {
 
   expect(result).toHaveLength(0);
   });
+
+  it('gets an item by its ID', async () => { //failed
+  const addedItem = await service.addItem({
+    ...base,
+    name: 'T-shirt',
+    category: 'top',
+  });
+
+  const result = await service.getById(addedItem.id);
+
+  expect(result).toEqual(addedItem);
+});
 });
