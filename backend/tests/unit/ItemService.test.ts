@@ -188,4 +188,16 @@ it('rejects an item without a fabric', async () => {
   ).rejects.toThrow(ValidationError);
   });
 
+  it('rejects an item with an invalid user ID', async () => {
+  await expect(
+    service.addItem({
+      ...base,
+      userId: 0,
+      name: 'T-shirt',
+      category: 'top',
+    })
+  ).rejects.toThrow(ValidationError);
+  });
+
+
 });
