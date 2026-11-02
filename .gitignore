@@ -2,3 +2,6 @@ node_modules/
 dist/
 coverage/
 .env
+*.db
+*.sqlite
+backend/data/
