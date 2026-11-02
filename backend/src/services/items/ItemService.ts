@@ -18,4 +18,7 @@ export class ItemService {
   async listItems(userId: number, filter?: ItemFilter): Promise<Item[]> {
     return this.repo.findAll(userId, filter);
   }
+  async getById(id: number): Promise<Item | null> {//added
+  return this.repo.findById(id);
+  }
 }
