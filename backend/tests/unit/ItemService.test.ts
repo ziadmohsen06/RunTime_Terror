@@ -155,7 +155,7 @@ describe('ItemService', () => {
   expect(result).toEqual(addedItem);
 });
 
-it('updates an item status', async () => {
+it('updates an item status', async () => { //failed
   const item = await service.addItem({
     ...base,
     name: 'T-shirt',
@@ -169,4 +169,23 @@ it('updates an item status', async () => {
 
   expect(updatedItem.status).toBe(ItemStatus.DIRTY);
   });
+
+  it('rejects an item without a color', async () => {
+  await expect(
+    service.addItem({ ...base, name: 'T-shirt', category: 'top', color: '  ' })
+  ).rejects.toThrow(ValidationError);
+});
+
+it('rejects an item without a season', async () => {
+  await expect(
+    service.addItem({ ...base, name: 'T-shirt', category: 'top', season: '  ' })
+  ).rejects.toThrow(ValidationError);
+});
+
+it('rejects an item without a fabric', async () => {
+  await expect(
+    service.addItem({ ...base, name: 'T-shirt', category: 'top', fabric: '  ' })
+  ).rejects.toThrow(ValidationError);
+  });
+
 });
