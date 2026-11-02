@@ -1,6 +1,7 @@
 import { Item, NewItem } from '../../domain/entities/Item';
-import { ValidationError } from '../../domain/errors/AppError';
+import { NotFoundError, ValidationError } from '../../domain/errors/AppError';
 import { IItemRepository, ItemFilter } from '../../repositories/interfaces/IItemRepository';
+import { ItemStatus } from '../../domain/enums/ItemStatus';//added
 
 export class ItemService {
   constructor(private readonly repo: IItemRepository) {}
@@ -20,5 +21,17 @@ export class ItemService {
   }
   async getById(id: number): Promise<Item | null> {//added
   return this.repo.findById(id);
+  }
+    async updateStatus( //finds item and updates status
+    id: number,
+    status: ItemStatus
+  ): Promise<Item> {
+    const item = await this.repo.updateStatus(id, status);
+
+    if (!item) {
+      throw new NotFoundError(`Item with ID ${id} not found`);
+    }
+
+    return item;
   }
 }
