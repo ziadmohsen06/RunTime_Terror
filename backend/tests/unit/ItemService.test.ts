@@ -154,4 +154,19 @@ describe('ItemService', () => {
 
   expect(result).toEqual(addedItem);
 });
+
+it('updates an item status', async () => {
+  const item = await service.addItem({
+    ...base,
+    name: 'T-shirt',
+    category: 'top',
+  });
+
+  const updatedItem = await service.updateStatus(
+    item.id,
+    ItemStatus.DIRTY
+  );
+
+  expect(updatedItem.status).toBe(ItemStatus.DIRTY);
+  });
 });

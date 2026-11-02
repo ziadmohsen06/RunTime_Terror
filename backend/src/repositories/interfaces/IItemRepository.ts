@@ -14,4 +14,5 @@ export interface IItemRepository {
   create(item: NewItem): Promise<Item>;
   findAll(userId: number, filter?: ItemFilter): Promise<Item[]>;
   findById(id: number): Promise<Item | null>;
+  updateStatus(id: number, status: ItemStatus): Promise<Item | null>;
 }
