@@ -24,7 +24,8 @@ export class InMemoryItemRepository implements IItemRepository {
         i.userId === userId &&
         (!filter.category || i.category === filter.category) &&
         (!filter.color || i.color === filter.color) &&
-        (!filter.season || i.season === filter.season)
+        (!filter.season || i.season === filter.season) &&
+        (!filter.status || i.status === filter.status)
     );
   }
 
