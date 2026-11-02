@@ -1,9 +1,12 @@
 import { Item, NewItem } from '../../domain/entities/Item';
+import { ItemStatus } from '../../domain/enums/ItemStatus';//added
 
 export interface ItemFilter {
   category?: string;
   color?: string;
   season?: string;
+  status?: ItemStatus;
+
 }
 
 // Services depend on this interface, never on a concrete class (Dependency Inversion).
