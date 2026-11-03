@@ -112,6 +112,107 @@ notification mechanism is implemented in this milestone.
 The backend uses Express, Jest, Supertest, and `better-sqlite3` (plus its type
 definitions).
 
+## Outfits module
+
+Builds outfits and suggests ranked ones. Items are read only through `ItemService`,
+behind the small `IItemReader` interface, so this module can never change an item.
+Only items with status `clean` can be used: every other status (`dirty`, `in_laundry`,
+`washing`, `drying`, `ironing`) is left out of suggestions and refused when building.
+
+### Pages
+
+With `npm run dev` running, open `/outfit-builder.html` to pick items and save an
+outfit, and `/outfit-suggestions.html` to choose an occasion and season.
+
+### API
+
+| Method and path | Request | Response |
+| --- | --- | --- |
+| `POST /outfits` | `{ "name": "Friday", "itemIds": [1, 2] }` | 201 and the outfit with its items |
+| `GET /outfits` | — | 200 and the caller's outfits, newest first, with each item's current status |
+| `GET /outfits/suggestions?occasion=work&season=winter&limit=5` | `limit` is optional, 1 to 20, default 5 | 200 and ranked `{ items, totalScore, breakdown }` |
+
+Building fails with 400 if an item is not clean, 403 if it belongs to someone else, and
+404 if it does not exist.
+
+### Matching decisions
+
+These tables are the team's agreed rules. The code version is
+`services/outfits/matching/matchingTables.ts`: change both together.
+
+Item text is compared in a standard form, so `Tops`, `T-Shirt`, `Light Blue` and
+`All Season` all work. Occasions are `casual`, `work`, `formal` and `sport`.
+
+**Which categories fit which occasion**
+
+| Slot | Category | Casual | Work | Formal | Sport |
+| --- | --- | --- | --- | --- | --- |
+| Top | top | yes | yes | | |
+| Top | t-shirt | yes | | | yes |
+| Top | shirt, blouse | yes | yes | yes | |
+| Top | sweater | yes | yes | | |
+| Top | hoodie | yes | | | yes |
+| Bottom | bottom, chinos | yes | yes | | |
+| Bottom | jeans | yes | | | |
+| Bottom | trousers, skirt | yes | yes | yes | |
+| Bottom | shorts, sweatpants, leggings | yes | | | yes |
+| Full | dress | yes | yes | yes | |
+| Full | suit | | yes | yes | |
+| Outerwear | blazer, coat | yes | yes | yes | |
+| Outerwear | jacket | yes | | | yes |
+| Shoes | shoes, boots | yes | yes | | |
+| Shoes | sneakers | yes | | | yes |
+| Shoes | dress shoes, heels | | yes | yes | |
+| Shoes | loafers | yes | yes | yes | |
+| Shoes | sandals | yes | | | |
+
+Also accepted: pants (trousers), tee (t-shirt), jumper (sweater), joggers (sweatpants),
+trainers (sneakers), and plurals. A category outside this table, such as `scarf`, can go
+in an outfit you build yourself but is never suggested.
+
+**Which colors match**
+
+- A color always matches itself.
+- Neutrals match everything: black, white, grey, navy, beige, brown.
+- These pairs also match: blue with orange, yellow, pink, green or red; red with pink;
+  green with yellow; orange with yellow; purple with yellow or pink.
+- Anything else clashes, for example red with green or pink with orange.
+- Shades reduce to a base color: denim counts as navy; cream, tan and khaki as beige;
+  burgundy and maroon as red; olive as green; teal and turquoise as blue; lilac as purple.
+
+### How suggestions are scored
+
+1. Keep the user's clean items and sort them into slots.
+2. Keep the best 6 items per slot, so a large closet stays fast.
+3. Build candidates: a top with a bottom, or one dress or suit, each with and without
+   shoes and outerwear.
+4. Each rule scores a candidate from 0 to 100, and the engine adds the scores:
+   - **Occasion:** the share of items that fit the occasion.
+   - **Season:** the share of items made for that season or for all seasons.
+   - **Color:** the share of item pairs that match.
+5. Rank by total, then by the more complete outfit, then by item id so the order never changes.
+6. Drop any outfit that is only part of a better one, then return the top `limit`.
+
+### Adding a rule (NFR2)
+
+Write a class that implements `MatchingRule`, then add it to `createDefaultRules()` in
+`matching/defaultRules.ts`. `MatchingEngine` does not change: it only knows the interface.
+`MatchingEngine.test.ts` proves this with a dummy rule that exists only in the test.
+
+### Programming styles and design
+
+- **Strategy pattern:** each rule is a replaceable `MatchingRule`, chosen in one place.
+- **Declarative:** the matching tables, `map`/`filter`/`reduce` in the rules and engine,
+  and SQL in the repository.
+- **Imperative:** the nested loops in `buildCandidates` and the early-exit loop in
+  `pickDistinct`.
+- **SRP:** rules score, the engine ranks, `candidates.ts` combines, and `OutfitService`
+  applies the business rules.
+- **OCP:** new rules need no engine change.
+- **LSP:** in-memory and SQLite repositories pass the same contract tests.
+- **ISP/DIP:** `OutfitService` depends on `IItemReader` and `IOutfitRepository`, not on
+  concrete classes.
+
 ## Adding your module (copy the Items example)
 
 1. Add entities/enums to `domain/`.
