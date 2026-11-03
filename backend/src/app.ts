@@ -13,6 +13,7 @@ import {
 import Database from 'better-sqlite3';
 import { SqliteItemRepository } from './repositories/implementations/SqliteItemRepository';
 import path from 'path';
+import { createOutfitRouter } from './services/outfits/outfitModule';
 
 export interface CreateAppOptions {
   clock?: Clock;
@@ -31,6 +32,7 @@ export function createApp(options: CreateAppOptions = {}) {
   : new InMemoryItemRepository();
   const itemService = new ItemService(itemRepo);
   app.use('/items', itemRoutes(new ItemController(itemService)));
+  app.use('/outfits', createOutfitRouter({ items: itemService, db: options.db }));
 
   const recurring =
     options.recurring ??
