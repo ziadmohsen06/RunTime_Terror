@@ -190,6 +190,27 @@ describe('OutfitService', () => {
       expect(allIds(await service.suggest(1, request))).toContain(summerShirt.id);
     });
 
+    it('does not repeat an outfit that is only part of a better one', async () => {
+      await add('shirt');
+      await add('jeans');
+      await add('sneakers');
+      await add('jacket');
+
+      const suggestions = await service.suggest(1, request);
+
+      expect(suggestions).toHaveLength(1);
+      expect(suggestions[0].items).toHaveLength(4);
+    });
+
+    it('still offers the same base with different shoes', async () => {
+      await add('shirt');
+      await add('jeans');
+      await add('sneakers');
+      await add('sandals');
+
+      expect(await service.suggest(1, request)).toHaveLength(2);
+    });
+
     it('uses rules it is given, so a new rule changes the ranking', async () => {
       const preferRed: MatchingRule = {
         name: 'red',
