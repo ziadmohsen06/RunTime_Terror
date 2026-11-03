@@ -65,7 +65,7 @@ export class OutfitService {
 
     const cleanItems = await this.items.listItems(userId, { status: ItemStatus.CLEAN });
     const slots = this.keepBestPerSlot(groupBySlot(cleanItems), context);
-    return this.engine.rank(buildCandidates(slots), context).slice(0, limit);
+    return this.pickDistinct(this.engine.rank(buildCandidates(slots), context), limit);
   }
 
   private async requireWearableItem(userId: number, id: number): Promise<Item> {
@@ -85,6 +85,24 @@ export class OutfitService {
   private async withItems(outfit: Outfit): Promise<OutfitWithItems> {
     const items = await Promise.all(outfit.itemIds.map((id) => this.items.getById(id)));
     return { ...outfit, items: items.filter((item): item is Item => item !== null) };
+  }
+
+  // Without this, the top results are one outfit with and without shoes or a coat.
+  private pickDistinct(ranked: RankedOutfit[], limit: number): RankedOutfit[] {
+    const picked: RankedOutfit[] = [];
+    for (const outfit of ranked) {
+      if (picked.length === limit) {
+        break;
+      }
+      if (!picked.some((better) => this.isPartOf(outfit, better))) {
+        picked.push(outfit);
+      }
+    }
+    return picked;
+  }
+
+  private isPartOf(outfit: RankedOutfit, other: RankedOutfit): boolean {
+    return outfit.items.every((item) => other.items.includes(item));
   }
 
   private keepBestPerSlot(slots: ItemsBySlot, context: MatchContext): ItemsBySlot {
