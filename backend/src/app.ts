@@ -10,18 +10,25 @@ import {
   createRecurringModule,
   RecurringModule,
 } from './services/recurring/recurringModule';
+import Database from 'better-sqlite3';
+import { SqliteItemRepository } from './repositories/implementations/SqliteItemRepository';
+import path from 'path';
 
 export interface CreateAppOptions {
   clock?: Clock;
   recurring?: RecurringModule;
+  db?: Database.Database;
 }
 
 export function createApp(options: CreateAppOptions = {}) {
   const app = express();
   app.use(express.json());
+  app.use(express.static(path.resolve(__dirname, '../../frontend')));
 
   // Wiring (composition root): each module adds its repo -> service -> controller here.
-  const itemRepo = new InMemoryItemRepository();
+  const itemRepo = options.db
+  ? new SqliteItemRepository(options.db)
+  : new InMemoryItemRepository();
   const itemService = new ItemService(itemRepo);
   app.use('/items', itemRoutes(new ItemController(itemService)));
 

@@ -24,11 +24,25 @@ export class InMemoryItemRepository implements IItemRepository {
         i.userId === userId &&
         (!filter.category || i.category === filter.category) &&
         (!filter.color || i.color === filter.color) &&
-        (!filter.season || i.season === filter.season)
+        (!filter.season || i.season === filter.season) &&
+        (!filter.status || i.status === filter.status)
     );
   }
 
   async findById(id: number): Promise<Item | null> {
     return this.items.find((i) => i.id === id) ?? null;
+  }
+  async updateStatus(
+  id: number,
+  status: ItemStatus
+): Promise<Item | null> {
+  const item = await this.findById(id);
+
+  if (!item) {
+    return null;
+  }
+
+  item.status = status;
+  return item;
   }
 }

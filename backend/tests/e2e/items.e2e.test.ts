@@ -19,4 +19,24 @@ describe('Items API (E2E)', () => {
     expect(res.status).toBe(400);
     expect(res.body.error.message).toBe('Item name is required');
   });
+
+  it('filters items by status through the API', async () => {
+    const app = createApp();
+
+    await request(app).post('/items').send({
+      name: 'Clean Shirt',
+      category: 'top',
+      color: 'white',
+      season: 'summer',
+      fabric: 'cotton',
+    });
+
+    const response = await request(app)
+      .get('/items')
+      .query({ status: 'dirty' });
+
+    expect(response.status).toBe(200);
+    expect(response.body).toHaveLength(0);
+  });
+
 });

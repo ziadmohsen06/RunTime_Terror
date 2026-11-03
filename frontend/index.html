@@ -1,0 +1,306 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Closet Items - Test Page</title>
+  <style>
+    * { box-sizing: border-box; }
+
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 1000px;
+      margin: 30px auto;
+      padding: 20px;
+      background: #f6f3f0;
+      color: #302b28;
+    }
+
+    h1 { color: #73594b; }
+    h2 { margin-top: 0; }
+
+    section {
+      background: white;
+      padding: 22px;
+      margin: 20px 0;
+      border-radius: 12px;
+      box-shadow: 0 2px 8px #00000010;
+    }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 14px;
+    }
+
+    label {
+      display: block;
+      font-size: 14px;
+      margin-bottom: 6px;
+    }
+
+    input, select, button {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid #d5ccc5;
+      border-radius: 6px;
+      font-size: 14px;
+    }
+
+    button {
+      background: #73594b;
+      color: white;
+      border: none;
+      cursor: pointer;
+      margin-top: 12px;
+    }
+
+    button:hover { background: #594235; }
+
+    .filters { margin-bottom: 15px; }
+
+    .item {
+      border: 1px solid #e4ddd7;
+      padding: 14px;
+      border-radius: 8px;
+      margin-top: 12px;
+      background: #fffdfb;
+    }
+
+    .item h3 { margin: 0 0 8px; }
+    .item p { margin: 5px 0; }
+    #message { font-weight: bold; }
+    .muted { color: #716961; }
+
+    @media (max-width: 500px) {
+      body { margin: 10px auto; padding: 12px; }
+    }
+  </style>
+</head>
+
+<body>
+  <h1>My Closet</h1>
+  <p class="muted">Simple frontend for testing the Closet Items API.</p>
+
+  <section>
+    <h2>Add a clothing item</h2>
+
+    <form id="itemForm">
+      <div class="form-grid">
+        <div>
+          <label for="name">Item name *</label>
+          <input id="name" required placeholder="e.g. White T-shirt">
+        </div>
+
+        <div>
+          <label for="category">Category *</label>
+          <input id="category" required placeholder="e.g. Tops">
+        </div>
+
+        <div>
+          <label for="color">Color *</label>
+          <input id="color" required placeholder="e.g. White">
+        </div>
+
+        <div>
+          <label for="season">Season *</label>
+          <select id="season" required>
+            <option value="">Choose season</option>
+            <option>Spring</option>
+            <option>Summer</option>
+            <option>Autumn</option>
+            <option>Winter</option>
+            <option>All Season</option>
+          </select>
+        </div>
+
+        <div>
+          <label for="fabric">Fabric *</label>
+          <input id="fabric" required placeholder="e.g. Cotton">
+        </div>
+
+        <div>
+          <label for="photoUrl">Photo URL (optional)</label>
+          <input id="photoUrl" type="url" placeholder="https://...">
+        </div>
+      </div>
+
+      <button type="submit">Add Item</button>
+    </form>
+
+    <p id="message" role="status"></p>
+  </section>
+
+  <section>
+    <h2>My items</h2>
+
+    <div class="form-grid filters">
+      <div>
+        <label for="filterCategory">Filter by category</label>
+        <input id="filterCategory" placeholder="e.g. Tops">
+      </div>
+
+      <div>
+        <label for="filterColor">Filter by color</label>
+        <input id="filterColor" placeholder="e.g. White">
+      </div>
+
+      <div>
+        <label for="filterSeason">Filter by season</label>
+        <input id="filterSeason" placeholder="e.g. Summer">
+      </div>
+
+      <div>
+        <label for="filterStatus">Filter by status</label>
+        <select id="filterStatus">
+          <option value="">All statuses</option>
+          <option value="CLEAN">Clean</option>
+          <option value="DIRTY">Dirty</option>
+          <option value="IN_LAUNDRY">In laundry</option>
+          <option value="WASHING">Washing</option>
+          <option value="DRYING">Drying</option>
+          <option value="IRONING">Ironing</option>
+        </select>
+      </div>
+    </div>
+
+    <button type="button" id="filterButton">Apply filters</button>
+    <button type="button" id="clearButton">Clear filters</button>
+
+    <p id="itemCount">Loading items...</p>
+    <div id="itemsList"></div>
+  </section>
+
+  <script>
+    const form = document.getElementById('itemForm');
+    const message = document.getElementById('message');
+    const itemsList = document.getElementById('itemsList');
+    const itemCount = document.getElementById('itemCount');
+
+    async function loadItems() {
+      itemCount.textContent = 'Loading items...';
+      itemsList.replaceChildren();
+
+      const params = new URLSearchParams();
+
+      const filters = {
+        category: document.getElementById('filterCategory').value.trim(),
+        color: document.getElementById('filterColor').value.trim(),
+        season: document.getElementById('filterSeason').value.trim(),
+        status: document.getElementById('filterStatus').value
+      };
+
+      for (const [key, value] of Object.entries(filters)) {
+        if (value) params.append(key, value);
+      }
+
+      try {
+        const response = await fetch('/items?' + params.toString());
+
+        if (!response.ok) {
+          throw new Error('Could not load items. HTTP ' + response.status);
+        }
+
+        const items = await response.json();
+
+        itemCount.textContent = items.length + ' item(s) found';
+
+        if (items.length === 0) {
+          itemsList.textContent = 'No items found. Try adding an item!';
+          return;
+        }
+
+        for (const item of items) {
+          const card = document.createElement('div');
+          card.className = 'item';
+
+          const title = document.createElement('h3');
+          title.textContent = item.name;
+          card.appendChild(title);
+
+          const details = [
+            'Category: ' + item.category,
+            'Color: ' + item.color,
+            'Season: ' + item.season,
+            'Fabric: ' + item.fabric,
+            'Status: ' + item.status,
+            'ID: ' + item.id
+          ];
+
+          for (const detail of details) {
+            const paragraph = document.createElement('p');
+            paragraph.textContent = detail;
+            card.appendChild(paragraph);
+          }
+
+          if (item.photoUrl) {
+            const link = document.createElement('a');
+            link.href = item.photoUrl;
+            link.textContent = 'View photo';
+            link.target = '_blank';
+            link.rel = 'noopener noreferrer';
+            card.appendChild(link);
+          }
+
+          itemsList.appendChild(card);
+        }
+      } catch (error) {
+        itemCount.textContent = 'Could not load items.';
+        itemsList.textContent =
+          error.message + ' Make sure the backend is running.';
+      }
+    }
+
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      message.textContent = 'Adding item...';
+
+      const item = {
+        name: document.getElementById('name').value.trim(),
+        category: document.getElementById('category').value.trim(),
+        color: document.getElementById('color').value.trim(),
+        season: document.getElementById('season').value,
+        fabric: document.getElementById('fabric').value.trim()
+      };
+
+      const photoUrl = document.getElementById('photoUrl').value.trim();
+      if (photoUrl) item.photoUrl = photoUrl;
+
+      try {
+        const response = await fetch('/items', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(item)
+        });
+
+        const result = await response.json();
+
+        if (!response.ok) {
+          throw new Error(result.message || 'Could not add item.');
+        }
+
+        message.textContent =
+          'Item added successfully! Status: ' + result.status;
+
+        form.reset();
+        await loadItems();
+      } catch (error) {
+        message.textContent = 'Error: ' + error.message;
+      }
+    });
+
+    document.getElementById('filterButton').addEventListener('click', loadItems);
+
+    document.getElementById('clearButton').addEventListener('click', () => {
+      document.getElementById('filterCategory').value = '';
+      document.getElementById('filterColor').value = '';
+      document.getElementById('filterSeason').value = '';
+      document.getElementById('filterStatus').value = '';
+      loadItems();
+    });
+
+    loadItems();
+  </script>
+</body>
+</html>
