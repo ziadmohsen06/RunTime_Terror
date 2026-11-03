@@ -1,0 +1,108 @@
+/* Shared by the two outfit pages; the palette follows index.html. */
+* { box-sizing: border-box; }
+
+body {
+  font-family: Arial, sans-serif;
+  max-width: 1000px;
+  margin: 30px auto;
+  padding: 20px;
+  background: #f6f3f0;
+  color: #302b28;
+}
+
+h1 { color: #73594b; margin-bottom: 8px; }
+h2 { margin-top: 0; }
+h3 { margin: 0 0 8px; }
+
+nav { display: flex; flex-wrap: wrap; gap: 16px; }
+nav a { color: #73594b; }
+nav a[aria-current='page'] { font-weight: bold; text-decoration: none; color: #302b28; }
+
+section {
+  background: white;
+  padding: 22px;
+  margin: 20px 0;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px #00000010;
+}
+
+label { display: block; font-size: 14px; margin-bottom: 6px; }
+
+input[type='text'], select, button {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #d5ccc5;
+  border-radius: 6px;
+  font-size: 14px;
+}
+
+button {
+  background: #73594b;
+  color: white;
+  border: none;
+  cursor: pointer;
+  margin-top: 12px;
+}
+
+button:hover { background: #594235; }
+button:disabled { background: #b5a9a1; cursor: not-allowed; }
+
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 14px;
+}
+
+.muted { color: #716961; }
+#message { font-weight: bold; min-height: 1.2em; }
+#message.error { color: #a12d21; }
+
+.item-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.item-choice {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin: 0;
+  padding: 12px;
+  border: 1px solid #e4ddd7;
+  border-radius: 8px;
+  background: #fffdfb;
+  cursor: pointer;
+}
+
+.item-choice:has(input:checked) { border-color: #73594b; background: #f3ece7; }
+.item-choice input { margin-top: 2px; }
+.item-choice strong { display: block; overflow-wrap: anywhere; }
+.item-choice span { font-size: 13px; color: #716961; }
+
+.card {
+  border: 1px solid #e4ddd7;
+  padding: 14px;
+  border-radius: 8px;
+  margin-top: 12px;
+  background: #fffdfb;
+}
+
+.card-head { display: flex; justify-content: space-between; gap: 12px; align-items: baseline; }
+.card ul { margin: 0 0 8px; padding-left: 20px; }
+.score { font-weight: bold; color: #73594b; white-space: nowrap; }
+.warning { color: #a12d21; font-size: 14px; margin: 6px 0 0; }
+
+.breakdown { display: flex; flex-wrap: wrap; gap: 6px; }
+.breakdown span {
+  font-size: 13px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: #f0e9e3;
+}
+
+@media (max-width: 500px) {
+  body { margin: 10px auto; padding: 12px; }
+  section { padding: 16px; }
+}
