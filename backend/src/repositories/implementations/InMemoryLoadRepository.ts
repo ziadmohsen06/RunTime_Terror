@@ -5,7 +5,7 @@ import { ILoadRepository } from '../interfaces/ILoadRepository';
 
 const copy = (l: LaundryLoad): LaundryLoad => ({ ...l, itemIds: [...l.itemIds] });
 
-// TEMPORARY: replace with a database-backed repository.
+// Used by unit tests and when no database is given; SqliteLoadRepository is the real one.
 export class InMemoryLoadRepository implements ILoadRepository {
   private loads: LaundryLoad[] = [];
   private nextId = 1;

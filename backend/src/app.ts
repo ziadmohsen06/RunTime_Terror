@@ -7,6 +7,9 @@ import { ItemService } from './services/items/ItemService';
 import { LaundryController } from './api/controllers/LaundryController';
 import { laundryRoutes } from './api/routes/laundryRoutes';
 import { InMemoryLoadRepository } from './repositories/implementations/InMemoryLoadRepository';
+import { SqliteLoadRepository } from './repositories/implementations/SqliteLoadRepository';
+import { initLoadSchema } from './repositories/implementations/sqlite/loadSchema';
+import { ILoadRepository } from './repositories/interfaces/ILoadRepository';
 import { LaundryService } from './services/laundry/LaundryService';
 import { TemporaryCareRules, TemporaryIroningQueue } from './services/laundry/temporary';
 import { Clock } from './domain/Clock';
@@ -26,6 +29,12 @@ export interface CreateAppOptions {
   db?: Database.Database;
 }
 
+function createLoadRepository(db?: Database.Database): ILoadRepository {
+  if (!db) return new InMemoryLoadRepository();
+  initLoadSchema(db);
+  return new SqliteLoadRepository(db);
+}
+
 export function createApp(options: CreateAppOptions = {}) {
   const app = express();
   app.use(express.json());
@@ -41,7 +50,7 @@ export function createApp(options: CreateAppOptions = {}) {
   // TEMPORARY: replace the two Temporary* classes with Mohamed's CareRules / IroningQueue.
   const laundryService = new LaundryService(
     itemRepo,
-    new InMemoryLoadRepository(),
+    createLoadRepository(options.db),
     itemService,
     new TemporaryCareRules(),
     new TemporaryIroningQueue()
