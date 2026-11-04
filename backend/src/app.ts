@@ -4,6 +4,11 @@ import { ItemController } from './api/controllers/ItemController';
 import { itemRoutes } from './api/routes/itemRoutes';
 import { InMemoryItemRepository } from './repositories/implementations/InMemoryItemRepository';
 import { ItemService } from './services/items/ItemService';
+import { LaundryController } from './api/controllers/LaundryController';
+import { laundryRoutes } from './api/routes/laundryRoutes';
+import { InMemoryLoadRepository } from './repositories/implementations/InMemoryLoadRepository';
+import { LaundryService } from './services/laundry/LaundryService';
+import { TemporaryCareRules, TemporaryIroningQueue } from './services/laundry/temporary';
 import { Clock } from './domain/Clock';
 import { SystemClock } from './domain/Clock';
 import {
@@ -32,6 +37,16 @@ export function createApp(options: CreateAppOptions = {}) {
   : new InMemoryItemRepository();
   const itemService = new ItemService(itemRepo);
   app.use('/items', itemRoutes(new ItemController(itemService)));
+  // Laundry: Joudy's ItemService.updateStatus is the only way item status changes.
+  // TEMPORARY: replace the two Temporary* classes with Mohamed's CareRules / IroningQueue.
+  const laundryService = new LaundryService(
+    itemRepo,
+    new InMemoryLoadRepository(),
+    itemService,
+    new TemporaryCareRules(),
+    new TemporaryIroningQueue()
+  );
+  app.use('/laundry', laundryRoutes(new LaundryController(laundryService)));
   app.use('/outfits', createOutfitRouter({ items: itemService, db: options.db }));
 
   const recurring =
