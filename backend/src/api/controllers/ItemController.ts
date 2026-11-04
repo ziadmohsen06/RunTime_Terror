@@ -1,6 +1,7 @@
 import { NextFunction, Request, Response } from 'express';
 import { ItemService } from '../../services/items/ItemService';
 import { ItemStatus } from '../../domain/enums/ItemStatus';
+import { NotFoundError, ValidationError } from '../../domain/errors/AppError';
 
 export class ItemController {
   constructor(private readonly service: ItemService) {}
@@ -43,4 +44,38 @@ export class ItemController {
       next(err);
     }
   };
+
+  getById = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      res.json(await this.ownedItem(req));
+    } catch (err) {
+      next(err);
+    }
+  };
+
+  updateStatus = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const item = await this.ownedItem(req);
+      const status = req.body?.status;
+      if (!Object.values(ItemStatus).includes(status)) {
+        throw new ValidationError(`Status must be one of: ${Object.values(ItemStatus).join(', ')}`);
+      }
+      res.json(await this.service.updateStatus(item.id, status as ItemStatus));
+    } catch (err) {
+      next(err);
+    }
+  };
+
+  // Another user's item is reported as not found, so ids cannot be probed.
+  private async ownedItem(req: Request) {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id) || id <= 0) {
+      throw new ValidationError('Item id must be a positive integer');
+    }
+    const item = await this.service.getById(id);
+    if (!item || item.userId !== this.userId(req)) {
+      throw new NotFoundError(`Item with ID ${id} not found`);
+    }
+    return item;
+  }
 }

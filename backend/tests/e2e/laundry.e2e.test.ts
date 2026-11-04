@@ -1,5 +1,7 @@
 import request from 'supertest';
 import { createApp } from '../../src/app';
+import Database from 'better-sqlite3';
+import { initRecurringSchema } from '../../src/repositories/implementations/sqlite/recurringSchema';
 
 // User story (FR1): As a user, I want to group my dirty clothes into loads by color and
 // fabric and track each load until it is clean, so that I know what is ready to wear
@@ -115,5 +117,26 @@ describe('Laundry API (E2E)', () => {
   it('returns 404 for an unknown load or item', async () => {
     expect((await request(app).post('/laundry/loads/99/advance')).status).toBe(404);
     expect((await markDirty(99)).status).toBe(404);
+  });
+});
+
+describe('Laundry loads with a real database (E2E)', () => {
+  it('keeps loads after the app is rebuilt on the same database', async () => {
+    const db = new Database(':memory:');
+    initRecurringSchema(db);
+    const first = createApp({ db });
+    const item = await request(first)
+      .post('/items')
+      .send({ name: 'Tee', category: 'top', color: 'white', season: 'summer', fabric: 'cotton' });
+    await request(first).post(`/laundry/items/${item.body.id}/dirty`);
+    const load = await request(first).post('/laundry/loads').send({ itemIds: [item.body.id] });
+    expect(load.status).toBe(201);
+
+    const restarted = createApp({ db });
+    const loads = await request(restarted).get('/laundry/loads');
+
+    expect(loads.body).toHaveLength(1);
+    expect(loads.body[0].itemIds).toEqual([item.body.id]);
+    db.close();
   });
 });

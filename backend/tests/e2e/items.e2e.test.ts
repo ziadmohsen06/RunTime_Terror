@@ -39,4 +39,46 @@ describe('Items API (E2E)', () => {
     expect(response.body).toHaveLength(0);
   });
 
+
+  describe('single item and status', () => {
+    const body = { name: 'Shirt', category: 'top', color: 'white', season: 'summer', fabric: 'cotton' };
+
+    it('gets one item by id', async () => {
+      const app = createApp();
+      const { body: created } = await request(app).post('/items').send(body);
+
+      const res = await request(app).get(`/items/${created.id}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.name).toBe('Shirt');
+    });
+
+    it('returns 404 for a missing item and 400 for a bad id', async () => {
+      const app = createApp();
+      expect((await request(app).get('/items/99')).status).toBe(404);
+      expect((await request(app).get('/items/abc')).status).toBe(400);
+    });
+
+    it('updates the status of an item', async () => {
+      const app = createApp();
+      const { body: created } = await request(app).post('/items').send(body);
+
+      const res = await request(app).patch(`/items/${created.id}/status`).send({ status: 'dirty' });
+
+      expect(res.status).toBe(200);
+      expect(res.body.status).toBe('dirty');
+      expect((await request(app).get(`/items/${created.id}`)).body.status).toBe('dirty');
+    });
+
+    it('rejects an unknown status and a missing item', async () => {
+      const app = createApp();
+      const { body: created } = await request(app).post('/items').send(body);
+
+      const bad = await request(app).patch(`/items/${created.id}/status`).send({ status: 'flying' });
+      expect(bad.status).toBe(400);
+      expect(bad.body.error.message).toContain('Status must be one of');
+
+      expect((await request(app).patch('/items/99/status').send({ status: 'dirty' })).status).toBe(404);
+    });
+  });
 });

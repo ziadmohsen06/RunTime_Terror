@@ -14,7 +14,7 @@ backend/
     config/         env and database config
     app.ts          composition root: wires repository -> service -> controller per module
   tests/            unit/ and e2e/
-frontend/           reserved for the M3 frontend integration
+frontend/           static pages served by the backend (items test page, outfit pages); full UI is M3
 docs/               M1 document, diagrams, user stories
 ```
 
@@ -40,8 +40,42 @@ npm run test:coverage
 
 ## Frontend milestone
 
-The M2 beta is backend-only. Frontend implementation and integration are
-reserved for Milestone 3; `frontend/` contains only the original placeholder.
+The M2 beta is backend-first. `frontend/` holds small static pages served by
+Express (`index.html` for closet items, `outfit-builder.html` and
+`outfit-suggestions.html` for outfits). The full frontend and integration are
+reserved for Milestone 3.
+
+## Items module
+
+Stores closet items. Every item has one status: `clean`, `dirty`, `in_laundry`,
+`washing`, `drying` or `ironing`. New items start `clean`.
+
+| Method and path | Request | Response |
+| --- | --- | --- |
+| `POST /items` | `{ name, category, color, season, fabric }` | 201 and the item |
+| `GET /items?category=&color=&season=&status=` | optional filters | 200 and the caller's items |
+| `GET /items/:id` | — | 200 and the item; 404 if missing or not the caller's |
+| `PATCH /items/:id/status` | `{ "status": "dirty" }` | 200 and the updated item; 400 for an unknown status |
+
+`ItemService.updateStatus` is the only place an item's status is written; the
+laundry module calls it instead of touching the repository.
+
+## Laundry module
+
+Groups dirty items into loads by color group and fabric group and moves each load
+through `pending`, `washing`, `drying` and `done`. Item status follows the load
+(State pattern in `services/laundry/status`). Loads are stored in SQLite when the
+server runs. Until the ironing module exists, `services/laundry/temporary.ts`
+stands in for the care rules and the ironing queue.
+
+| Method and path | Request | Response |
+| --- | --- | --- |
+| `POST /laundry/items/:itemId/dirty` | — | 200 and the item, now dirty |
+| `GET /laundry/dirty-items` | — | 200 and the caller's dirty items |
+| `GET /laundry/loads` | — | 200 and the caller's loads |
+| `POST /laundry/loads` | `{ "itemIds": [1, 2] }` | 201 and the new load |
+| `POST /laundry/loads/:loadId/advance` | — | 200 and the load at its next stage |
+| `DELETE /laundry/loads/:loadId/items/:itemId` | — | 200 and the load without that item |
 
 ## Recurring Tasks module
 
@@ -85,12 +119,11 @@ server starts listening and then at
 `RECURRING_CHECK_INTERVAL_MINUTES` (default 60); it skips overlapping runs,
 logs failures, and stops on SIGINT/SIGTERM.
 
-SQLite repositories and their restart/contract tests are included, but this
-repository does not yet contain the shared database module. Therefore the
-current server and default `createApp()` use in-memory repositories: data does
-not survive a server restart until the shared database is injected. The SQLite
-repositories accept an injected `better-sqlite3` connection, and the module
-initializes its schema when one is supplied.
+The server (`server.ts`) opens one shared SQLite database (`DATABASE_PATH`,
+default `./closet.sqlite`) and passes it to every module, so recurring tasks
+survive a restart. `createApp()` without a database falls back to in-memory
+repositories, which is what most tests use. The in-memory and SQLite
+repositories pass the same contract tests.
 
 Reminders are in-app only. No email, push notification, or Observer-based
 notification mechanism is implemented in this milestone.
