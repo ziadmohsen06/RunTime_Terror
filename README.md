@@ -14,7 +14,7 @@ backend/
     config/         env and database config
     app.ts          composition root: wires repository -> service -> controller per module
   tests/            unit/ and e2e/
-frontend/           React app (see below)
+frontend/           reserved for the M3 frontend integration
 docs/               M1 document, diagrams, user stories
 ```
 
@@ -38,15 +38,180 @@ npm run test:e2e
 npm run test:coverage
 ```
 
-## Frontend
+## Frontend milestone
 
-Create it once (one person), then commit:
+The M2 beta is backend-only. Frontend implementation and integration are
+reserved for Milestone 3; `frontend/` contains only the original placeholder.
 
-```bash
-npm create vite@latest frontend -- --template react-ts
-```
+## Recurring Tasks module
 
-Organize it by feature: `src/features/items`, `outfits`, `laundry`, `ironing`, `recurring`, `insights`, plus `shared`.
+The module is organized into domain entities/enums, small repository interfaces
+and in-memory/SQLite implementations, `RecurringTaskService`,
+`ReminderService`, the `WeeklyScheduler`, and separate API controllers/routes.
+
+### API
+
+All responses are JSON except successful task deletion (204). Errors use
+`{ "error": { "message": "..." } }`.
+
+| Method and path | Request | Response |
+| --- | --- | --- |
+| `POST /recurring-tasks` | `{ "title": "Laundry day", "dayOfWeek": "SATURDAY" }` | 201 and the created recurring task |
+| `GET /recurring-tasks` | — | 200 and the caller’s active tasks |
+| `DELETE /recurring-tasks/:id` | — | 204; deactivates the task |
+| `GET /occurrences?period=2026-W45` | Optional ISO week key | 200 and caller-owned occurrence views (`id`, task id/title/day, period, due date, status) |
+| `POST /occurrences/:id/complete` | — | 200 and the completed occurrence |
+| `GET /reminders` | — | 200 and caller-owned reminders (unread first, newest first) |
+| `POST /reminders/:id/read` | — | 200 and the updated reminder |
+| `POST /recurring-tasks/run-check` | Optional `{ "asOf": "YYYY-MM-DD" }` | 200 and `{ "periodKey", "created", "skipped" }` |
+
+The demo run-check endpoint is available only when
+`ENABLE_DEMO_ROUTES=true`. The supplied `.env.example` enables it for local
+demos.
+
+### Generation and reliability
+
+Period keys use ISO-8601 weeks computed in UTC. Due dates are UTC calendar
+dates; a task whose weekday has already passed still generates an occurrence
+for that week, where it can be treated as overdue by a future frontend.
+Creating a weekly task also creates its current-week occurrence and an in-app
+reminder immediately.
+
+The repository enforces uniqueness for `(recurring_task_id, period_key)` and
+for each reminder’s `occurrence_id`. A weekly check uses conflict-safe inserts
+and always attempts reminder creation for an occurrence, allowing a later run
+to repair a missing reminder. The scheduler runs once immediately after the
+server starts listening and then at
+`RECURRING_CHECK_INTERVAL_MINUTES` (default 60); it skips overlapping runs,
+logs failures, and stops on SIGINT/SIGTERM.
+
+SQLite repositories and their restart/contract tests are included, but this
+repository does not yet contain the shared database module. Therefore the
+current server and default `createApp()` use in-memory repositories: data does
+not survive a server restart until the shared database is injected. The SQLite
+repositories accept an injected `better-sqlite3` connection, and the module
+initializes its schema when one is supplied.
+
+Reminders are in-app only. No email, push notification, or Observer-based
+notification mechanism is implemented in this milestone.
+
+### Programming styles and design
+
+- **Declarative:** pure UTC period and due-date functions; `map`/`filter` for
+  occurrence views; `reduce` for run summaries; unread/newest reminder ordering;
+  SQL `WHERE` and `ORDER BY` clauses in SQLite repositories.
+- **Imperative:** the generation loop in `runWeeklyCheck`, scheduler timer and
+  in-flight state, and request/service validation with early exits.
+- **SRP:** recurring-task rules, reminder rules, and scheduling live in
+  separate classes.
+- **OCP/LSP:** services use repository interfaces; in-memory and SQLite
+  implementations share the same contract tests.
+- **ISP/DIP:** repositories expose small focused interfaces, and services
+  receive those interfaces plus the `Clock` abstraction through constructors.
+
+The backend uses Express, Jest, Supertest, and `better-sqlite3` (plus its type
+definitions).
+
+## Outfits module
+
+Builds outfits and suggests ranked ones. Items are read only through `ItemService`,
+behind the small `IItemReader` interface, so this module can never change an item.
+Only items with status `clean` can be used: every other status (`dirty`, `in_laundry`,
+`washing`, `drying`, `ironing`) is left out of suggestions and refused when building.
+
+### Pages
+
+With `npm run dev` running, open `/outfit-builder.html` to pick items and save an
+outfit, and `/outfit-suggestions.html` to choose an occasion and season.
+
+### API
+
+| Method and path | Request | Response |
+| --- | --- | --- |
+| `POST /outfits` | `{ "name": "Friday", "itemIds": [1, 2] }` | 201 and the outfit with its items |
+| `GET /outfits` | — | 200 and the caller's outfits, newest first, with each item's current status |
+| `GET /outfits/suggestions?occasion=work&season=winter&limit=5` | `limit` is optional, 1 to 20, default 5 | 200 and ranked `{ items, totalScore, breakdown }` |
+
+Building fails with 400 if an item is not clean, 403 if it belongs to someone else, and
+404 if it does not exist.
+
+### Matching decisions
+
+These tables are the team's agreed rules. The code version is
+`services/outfits/matching/matchingTables.ts`: change both together.
+
+Item text is compared in a standard form, so `Tops`, `T-Shirt`, `Light Blue` and
+`All Season` all work. Occasions are `casual`, `work`, `formal` and `sport`.
+
+**Which categories fit which occasion**
+
+| Slot | Category | Casual | Work | Formal | Sport |
+| --- | --- | --- | --- | --- | --- |
+| Top | top | yes | yes | | |
+| Top | t-shirt | yes | | | yes |
+| Top | shirt, blouse | yes | yes | yes | |
+| Top | sweater | yes | yes | | |
+| Top | hoodie | yes | | | yes |
+| Bottom | bottom, chinos | yes | yes | | |
+| Bottom | jeans | yes | | | |
+| Bottom | trousers, skirt | yes | yes | yes | |
+| Bottom | shorts, sweatpants, leggings | yes | | | yes |
+| Full | dress | yes | yes | yes | |
+| Full | suit | | yes | yes | |
+| Outerwear | blazer, coat | yes | yes | yes | |
+| Outerwear | jacket | yes | | | yes |
+| Shoes | shoes, boots | yes | yes | | |
+| Shoes | sneakers | yes | | | yes |
+| Shoes | dress shoes, heels | | yes | yes | |
+| Shoes | loafers | yes | yes | yes | |
+| Shoes | sandals | yes | | | |
+
+Also accepted: pants (trousers), tee (t-shirt), jumper (sweater), joggers (sweatpants),
+trainers (sneakers), and plurals. A category outside this table, such as `scarf`, can go
+in an outfit you build yourself but is never suggested.
+
+**Which colors match**
+
+- A color always matches itself.
+- Neutrals match everything: black, white, grey, navy, beige, brown.
+- These pairs also match: blue with orange, yellow, pink, green or red; red with pink;
+  green with yellow; orange with yellow; purple with yellow or pink.
+- Anything else clashes, for example red with green or pink with orange.
+- Shades reduce to a base color: denim counts as navy; cream, tan and khaki as beige;
+  burgundy and maroon as red; olive as green; teal and turquoise as blue; lilac as purple.
+
+### How suggestions are scored
+
+1. Keep the user's clean items and sort them into slots.
+2. Keep the best 6 items per slot, so a large closet stays fast.
+3. Build candidates: a top with a bottom, or one dress or suit, each with and without
+   shoes and outerwear.
+4. Each rule scores a candidate from 0 to 100, and the engine adds the scores:
+   - **Occasion:** the share of items that fit the occasion.
+   - **Season:** the share of items made for that season or for all seasons.
+   - **Color:** the share of item pairs that match.
+5. Rank by total, then by the more complete outfit, then by item id so the order never changes.
+6. Drop any outfit that is only part of a better one, then return the top `limit`.
+
+### Adding a rule (NFR2)
+
+Write a class that implements `MatchingRule`, then add it to `createDefaultRules()` in
+`matching/defaultRules.ts`. `MatchingEngine` does not change: it only knows the interface.
+`MatchingEngine.test.ts` proves this with a dummy rule that exists only in the test.
+
+### Programming styles and design
+
+- **Strategy pattern:** each rule is a replaceable `MatchingRule`, chosen in one place.
+- **Declarative:** the matching tables, `map`/`filter`/`reduce` in the rules and engine,
+  and SQL in the repository.
+- **Imperative:** the nested loops in `buildCandidates` and the early-exit loop in
+  `pickDistinct`.
+- **SRP:** rules score, the engine ranks, `candidates.ts` combines, and `OutfitService`
+  applies the business rules.
+- **OCP:** new rules need no engine change.
+- **LSP:** in-memory and SQLite repositories pass the same contract tests.
+- **ISP/DIP:** `OutfitService` depends on `IItemReader` and `IOutfitRepository`, not on
+  concrete classes.
 
 ## Adding your module (copy the Items example)
 

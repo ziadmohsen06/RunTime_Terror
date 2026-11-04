@@ -1,6 +1,8 @@
 import { ItemService } from '../../src/services/items/ItemService';
 import { InMemoryItemRepository } from '../../src/repositories/implementations/InMemoryItemRepository';
 import { ValidationError } from '../../src/domain/errors/AppError';
+import { ItemStatus } from '../../src/domain/enums/ItemStatus';//added
+
 
 // User story (FR1): As a user, I want to filter my items by category, color,
 // and season so that I can quickly find what to wear.
@@ -32,4 +34,170 @@ describe('ItemService', () => {
     expect(result).toHaveLength(1);
     expect(result[0].name).toBe('Jeans');
   });
+
+  
+  it('filters items by color', async () => {//passed
+    await service.addItem({ ...base, name: 'Blue T-shirt', category: 'top', color: 'blue' });
+    await service.addItem({ ...base, name: 'Red T-shirt', category: 'top', color: 'red' });
+
+    const result = await service.listItems(1, { color: 'red' });
+
+    expect(result).toHaveLength(1);
+    expect(result[0].name).toBe('Red T-shirt');
+  });
+
+  it('rejects an item without a category', async () => {//passed
+  await expect(
+    service.addItem({ ...base, name: 'T-shirt', category: '  ' })
+  ).rejects.toThrow(ValidationError);
+  });
+
+  it('filters items by season', async () => {//passed
+  await service.addItem({
+    ...base,
+    name: 'Summer T-shirt',
+    category: 'top',
+    season: 'summer',
+  });
+
+  await service.addItem({
+    ...base,
+    name: 'Winter Coat',
+    category: 'outerwear',
+    season: 'winter',
+  });
+
+  const result = await service.listItems(1, { season: 'winter' });
+
+  expect(result).toHaveLength(1);
+  expect(result[0].name).toBe('Winter Coat');
+  });
+
+  it('returns only items belonging to the specified user', async () => {
+  await service.addItem({
+    ...base,
+    name: 'Joudy T-shirt',
+    category: 'top',
+    userId: 1,
+  });
+
+  await service.addItem({
+    ...base,
+    name: 'Other User T-shirt',
+    category: 'top',
+    userId: 2,
+  });
+
+  const result = await service.listItems(1);
+
+  expect(result).toHaveLength(1);
+  expect(result[0].name).toBe('Joudy T-shirt');
+  });
+
+  it('filters items by multiple criteria', async () => {//passes
+  await service.addItem({
+    ...base,
+    name: 'Blue Summer T-shirt',
+    category: 'top',
+    color: 'blue',
+    season: 'summer',
+  });
+
+  await service.addItem({
+    ...base,
+    name: 'Red Summer T-shirt',
+    category: 'top',
+    color: 'red',
+    season: 'summer',
+  });
+
+  await service.addItem({
+    ...base,
+    name: 'Blue Winter Coat',
+    category: 'outerwear',
+    color: 'blue',
+    season: 'winter',
+  });
+
+  const result = await service.listItems(1, {
+    category: 'top',
+    color: 'blue',
+    season: 'summer',
+  });
+
+  expect(result).toHaveLength(1);
+  expect(result[0].name).toBe('Blue Summer T-shirt');
+  });
+
+  it('filters items by status', async () => {//failed
+  await service.addItem({
+    ...base,
+    name: 'T-shirt',
+    category: 'top',
+  });
+
+  const result = await service.listItems(1, {
+    status: ItemStatus.DIRTY,
+  });
+
+  expect(result).toHaveLength(0);
+  });
+
+  it('gets an item by its ID', async () => { //failed
+  const addedItem = await service.addItem({
+    ...base,
+    name: 'T-shirt',
+    category: 'top',
+  });
+
+  const result = await service.getById(addedItem.id);
+
+  expect(result).toEqual(addedItem);
+});
+
+it('updates an item status', async () => { //failed
+  const item = await service.addItem({
+    ...base,
+    name: 'T-shirt',
+    category: 'top',
+  });
+
+  const updatedItem = await service.updateStatus(
+    item.id,
+    ItemStatus.DIRTY
+  );
+
+  expect(updatedItem.status).toBe(ItemStatus.DIRTY);
+  });
+
+  it('rejects an item without a color', async () => {
+  await expect(
+    service.addItem({ ...base, name: 'T-shirt', category: 'top', color: '  ' })
+  ).rejects.toThrow(ValidationError);
+});
+
+it('rejects an item without a season', async () => {
+  await expect(
+    service.addItem({ ...base, name: 'T-shirt', category: 'top', season: '  ' })
+  ).rejects.toThrow(ValidationError);
+});
+
+it('rejects an item without a fabric', async () => {
+  await expect(
+    service.addItem({ ...base, name: 'T-shirt', category: 'top', fabric: '  ' })
+  ).rejects.toThrow(ValidationError);
+  });
+
+  it('rejects an item with an invalid user ID', async () => {
+  await expect(
+    service.addItem({
+      ...base,
+      userId: 0,
+      name: 'T-shirt',
+      category: 'top',
+    })
+  ).rejects.toThrow(ValidationError);
+  });
+
+
 });

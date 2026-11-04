@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Outfit Suggestions</title>
+  <link rel="stylesheet" href="outfits.css">
+</head>
+
+<body>
+  <h1>Outfit Suggestions</h1>
+  <nav>
+    <a href="index.html">My Closet</a>
+    <a href="outfit-builder.html">Build an Outfit</a>
+    <a href="outfit-suggestions.html" aria-current="page">Outfit Suggestions</a>
+  </nav>
+
+  <section>
+    <h2>What's the plan?</h2>
+
+    <form id="suggestForm">
+      <div class="form-grid">
+        <div>
+          <label for="occasion">Occasion</label>
+          <select id="occasion">
+            <option value="casual">Casual</option>
+            <option value="work">Work</option>
+            <option value="formal">Formal</option>
+            <option value="sport">Sport</option>
+          </select>
+        </div>
+
+        <div>
+          <label for="season">Season</label>
+          <select id="season">
+            <option value="spring">Spring</option>
+            <option value="summer">Summer</option>
+            <option value="autumn">Autumn</option>
+            <option value="winter">Winter</option>
+          </select>
+        </div>
+      </div>
+
+      <button type="submit">Suggest outfits</button>
+    </form>
+
+    <p id="message" role="status"></p>
+  </section>
+
+  <section>
+    <h2>Suggestions</h2>
+    <p class="muted">Built from clean items only, best match first.</p>
+    <div id="results"></div>
+  </section>
+
+  <script>
+    const form = document.getElementById('suggestForm');
+    const results = document.getElementById('results');
+    const message = document.getElementById('message');
+
+    function textElement(tag, text, className) {
+      const element = document.createElement(tag);
+      element.textContent = text;
+      if (className) element.className = className;
+      return element;
+    }
+
+    function capitalize(word) {
+      return word.charAt(0).toUpperCase() + word.slice(1);
+    }
+
+    function suggestionCard(outfit, index) {
+      const card = textElement('div', '', 'card');
+
+      const head = textElement('div', '', 'card-head');
+      head.append(
+        textElement('h3', `Option ${index + 1}`),
+        textElement('span', `Score ${outfit.totalScore}`, 'score')
+      );
+
+      const list = document.createElement('ul');
+      list.append(...outfit.items.map((item) =>
+        textElement('li', `${item.name} (${item.category}, ${item.color})`)
+      ));
+
+      const breakdown = textElement('div', '', 'breakdown');
+      breakdown.append(...outfit.breakdown.map(({ rule, score }) =>
+        textElement('span', `${capitalize(rule)} ${score}`)
+      ));
+
+      card.append(head, list, breakdown);
+      return card;
+    }
+
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      message.textContent = '';
+      message.className = '';
+
+      const query = new URLSearchParams({
+        occasion: document.getElementById('occasion').value,
+        season: document.getElementById('season').value,
+      });
+
+      try {
+        const response = await fetch(`/outfits/suggestions?${query}`);
+        const body = await response.json();
+        if (!response.ok) throw new Error(body.error?.message || 'Something went wrong');
+
+        results.replaceChildren(...body.map(suggestionCard));
+        if (body.length === 0) {
+          results.append(textElement(
+            'p',
+            'No outfit can be built yet. You need a clean top and bottom, or a clean dress or suit.',
+            'muted'
+          ));
+        }
+      } catch (error) {
+        results.replaceChildren();
+        message.textContent = error.message;
+        message.className = 'error';
+      }
+    });
+
+    results.append(textElement('p', 'Choose an occasion and season to see suggestions.', 'muted'));
+  </script>
+</body>
+</html>
