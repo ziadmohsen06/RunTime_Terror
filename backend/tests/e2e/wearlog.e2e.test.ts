@@ -102,4 +102,11 @@ describe('Wear Log API (E2E)', () => {
 
     expect(rows.total).toBe(1);
   });
+  
+  it('serves the wear log page', async () => {
+    const response = await request(app).get('/wear-log.html');
+
+    expect(response.status).toBe(200);
+    expect(response.type).toBe('text/html');
+  });
 });
