@@ -8,7 +8,7 @@ Software Construction and Testing, Winter 2026. **Layered architecture** (monoli
 backend/
   src/
     api/            controllers, routes, middleware, validators (no business logic)
-    services/       one folder per module: items, outfits, laundry, ironing, recurring, insights
+        services/       one folder per module: items, outfits, laundry, ironing, recurring, wearlog
     repositories/   interfaces/ (what services depend on) and implementations/
     domain/         entities, enums, errors shared by all layers
     config/         env and database config
