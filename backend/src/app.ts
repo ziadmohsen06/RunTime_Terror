@@ -22,6 +22,7 @@ import Database from 'better-sqlite3';
 import { SqliteItemRepository } from './repositories/implementations/SqliteItemRepository';
 import path from 'path';
 import { createOutfitRouter } from './services/outfits/outfitModule';
+import { createWearLogRouter } from './services/wearlog/wearLogModule';
 
 export interface CreateAppOptions {
   clock?: Clock;
@@ -57,6 +58,10 @@ export function createApp(options: CreateAppOptions = {}) {
   );
   app.use('/laundry', laundryRoutes(new LaundryController(laundryService)));
   app.use('/outfits', createOutfitRouter({ items: itemService, db: options.db }));
+    app.use(
+    '/wearlog',
+    createWearLogRouter({ items: itemService, clock: options.clock ?? new SystemClock(), db: options.db })
+  );
 
   const recurring =
     options.recurring ??
