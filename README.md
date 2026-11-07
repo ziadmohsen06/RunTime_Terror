@@ -8,7 +8,7 @@ Software Construction and Testing, Winter 2026. **Layered architecture** (monoli
 backend/
   src/
     api/            controllers, routes, middleware, validators (no business logic)
-    services/       one folder per module: items, outfits, laundry, ironing, recurring, insights
+        services/       one folder per module: items, outfits, laundry, ironing, recurring, wearlog
     repositories/   interfaces/ (what services depend on) and implementations/
     domain/         entities, enums, errors shared by all layers
     config/         env and database config
@@ -248,6 +248,61 @@ Write a class that implements `MatchingRule`, then add it to `createDefaultRules
 
 ## Adding your module (copy the Items example)
 
+## Wear Log module
+
+Lets a user log what they wore (items and a date) and shows wear stats: most worn,
+least worn, items not worn in the last 90 days, and a summary of the current week.
+Logs are stored in SQLite when the server runs.
+
+User story: As a user, I want to log what I wear and see my wear stats, so that I know
+which clothes I wear the most and which ones I never wear.
+
+### Page
+
+With `npm run dev` running, open `/wear-log.html`.
+
+### API
+
+| Method and path | Request | Response |
+| --- | --- | --- |
+| `POST /wearlog` | `{ "itemIds": [1, 2], "wornOn": "2026-11-06" }` (`wornOn` optional, default today) | 201 and the log |
+| `GET /wearlog` | — | 200 and the caller's logs, newest first |
+| `GET /wearlog/stats` | — | 200 and `{ mostWorn, leastWorn, notWornIn90Days, weeklySummary }` |
+
+Logging fails with 400 for no items, a repeated item, a badly written date or a future date,
+403 if an item belongs to someone else, and 404 if it does not exist.
+
+### Rules
+
+- **Not worn in 90 days:** never worn, or last worn more than 90 days before today
+  (worn exactly 90 days ago still counts as recent).
+- **Weekly summary:** the current Monday-to-Sunday week (UTC).
+- **Most and least worn:** top 5 each; least worn includes items worn 0 times; ties are broken by item id.
+- Logging a wear **never changes item status**. The module reads items through
+  `IWearItemReader`, which has no way to change them.
+- "Today" always comes from the shared `Clock`, never from `new Date()`, so tests can set the date.
+
+### Performance (NFR3)
+
+All stats are computed in one pass over the logs with `reduce` (no nested loops), and
+SQLite reads a user's logs with one indexed query. A unit test checks that the report
+for 1,000 wear logs is built in under 3 seconds.
+
+### Programming styles and design
+
+- **Declarative:** `flatMap`/`reduce` for counting, `map`/`filter`/`sort` for the lists,
+  pure date helpers in `dates.ts`, and SQL `JOIN`/`ORDER BY` in the SQLite repository.
+- **Imperative:** the validation loop in `requireOwnItems` that stops at the first bad item.
+- **SRP:** the controller parses requests, `WearLogService` holds the rules, repositories store logs.
+- **LSP:** the in-memory and SQLite repositories pass the same contract tests.
+- **ISP/DIP:** `WearLogService` depends on `IWearItemReader`, `IWearLogRepository` and `Clock`, not on concrete classes.
+
+### Tests
+
+- Unit: `tests/unit/wearlog/WearLogService.test.ts` (counts, 90-day boundary at 89/90/91 days,
+  weekly summary, validation, status unchanged, NFR3 performance).
+- Contract: `tests/unit/contracts/wearLogRepositories.contract.test.ts`.
+- E2E: `tests/e2e/wearlog.e2e.test.ts` (happy path, errors, page served).
 1. Add entities/enums to `domain/`.
 2. Write the repository interface in `repositories/interfaces/` and an in-memory implementation.
 3. **Write the unit test first**, then the service in `services/<your-module>/`.

@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Wear Log</title>
+  <link rel="stylesheet" href="outfits.css">
+  <style>
+    input[type='date'] { padding: 10px; border: 1px solid #d5ccc5; border-radius: 6px; font-size: 14px; }
+    .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; }
+    .card { border: 1px solid #e4ddd7; border-radius: 8px; padding: 14px; background: #fffdfb; }
+    .card ul { margin: 0; padding-left: 18px; }
+    .card li { margin: 4px 0; }
+  </style>
+</head>
+
+<body>
+  <h1>Wear Log</h1>
+  <nav>
+    <a href="index.html">My Closet</a>
+    <a href="outfit-builder.html">Build an Outfit</a>
+    <a href="outfit-suggestions.html">Outfit Suggestions</a>
+    <a href="wear-log.html" aria-current="page">Wear Log</a>
+  </nav>
+
+  <section>
+    <h2>Log what I wore</h2>
+
+    <form id="wearForm">
+      <label for="wornOn">Date (leave empty for today)</label>
+      <input id="wornOn" type="date">
+
+      <div id="itemChoices" class="item-grid"></div>
+
+      <button type="submit" id="logButton" disabled>Log what I wore</button>
+    </form>
+
+    <p id="message" role="status"></p>
+  </section>
+
+  <section>
+    <h2>My wear stats</h2>
+    <div class="stats-grid">
+      <div class="card"><h3>Most worn</h3><ul id="mostWorn"></ul></div>
+      <div class="card"><h3>Least worn</h3><ul id="leastWorn"></ul></div>
+      <div class="card"><h3>Not worn in 90 days</h3><ul id="notWorn"></ul></div>
+      <div class="card"><h3>This week</h3><ul id="weekly"></ul></div>
+    </div>
+  </section>
+
+  <script>
+    const form = document.getElementById('wearForm');
+    const dateInput = document.getElementById('wornOn');
+    const itemChoices = document.getElementById('itemChoices');
+    const logButton = document.getElementById('logButton');
+    const message = document.getElementById('message');
+
+    function showMessage(text, isError = false) {
+      message.textContent = text;
+      message.className = isError ? 'error' : '';
+    }
+
+    function textElement(tag, text, className) {
+      const element = document.createElement(tag);
+      element.textContent = text;
+      if (className) element.className = className;
+      return element;
+    }
+
+    async function readJson(response) {
+      const body = await response.json();
+      if (!response.ok) throw new Error(body.error?.message || 'Something went wrong');
+      return body;
+    }
+
+    function selectedIds() {
+      return [...itemChoices.querySelectorAll('input:checked')].map((box) => Number(box.value));
+    }
+
+    function updateLogButton() {
+      const count = selectedIds().length;
+      logButton.disabled = count === 0;
+      logButton.textContent = count === 0
+        ? 'Log what I wore'
+        : `Log what I wore (${count} item${count === 1 ? '' : 's'})`;
+    }
+
+    // Every item can be logged, whatever its status: logging a wear never changes status.
+    function itemChoice(item) {
+      const label = document.createElement('label');
+      label.className = 'item-choice';
+
+      const box = document.createElement('input');
+      box.type = 'checkbox';
+      box.value = item.id;
+
+      const text = document.createElement('div');
+      text.append(textElement('strong', item.name), textElement('span', ` ${item.category}, ${item.color}`));
+
+      label.append(box, text);
+      return label;
+    }
+
+    async function loadItems() {
+      const items = await readJson(await fetch('/items'));
+      itemChoices.replaceChildren(...items.map(itemChoice));
+      if (items.length === 0) {
+        itemChoices.append(textElement('p', 'No items yet. Add some in My Closet.', 'muted'));
+      }
+      updateLogButton();
+    }
+
+    function fillList(id, usages, describe) {
+      const list = document.getElementById(id);
+      list.replaceChildren(...usages.map((usage) => textElement('li', describe(usage))));
+      if (usages.length === 0) {
+        list.append(textElement('li', 'Nothing here yet.', 'muted'));
+      }
+    }
+
+    const times = (count) => `${count} time${count === 1 ? '' : 's'}`;
+
+    async function loadStats() {
+      const stats = await readJson(await fetch('/wearlog/stats'));
+
+      fillList('mostWorn', stats.mostWorn, (u) => `${u.name}: ${times(u.count)}`);
+      fillList('leastWorn', stats.leastWorn, (u) => `${u.name}: ${times(u.count)}`);
+      fillList('notWorn', stats.notWornIn90Days, (u) =>
+        u.lastWornOn ? `${u.name} (last worn ${u.lastWornOn})` : `${u.name} (never worn)`
+      );
+
+      const week = stats.weeklySummary;
+      document.getElementById('weekly').replaceChildren(
+        textElement('li', `${week.weekStart} to ${week.weekEnd}`, 'muted'),
+        textElement('li', `Days logged: ${week.logCount}`),
+        textElement('li', `Items worn: ${week.totalWears}`),
+        textElement('li', `Different items: ${week.distinctItems}`)
+      );
+    }
+
+    itemChoices.addEventListener('change', updateLogButton);
+
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      showMessage('');
+      try {
+        const body = { itemIds: selectedIds() };
+        if (dateInput.value) body.wornOn = dateInput.value;
+
+        const log = await readJson(await fetch('/wearlog', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        }));
+        showMessage(`Logged ${log.itemIds.length} item${log.itemIds.length === 1 ? '' : 's'} for ${log.wornOn}.`);
+        form.reset();
+        updateLogButton();
+        await loadStats();
+      } catch (error) {
+        showMessage(error.message, true);
+      }
+    });
+
+    Promise.all([loadItems(), loadStats()]).catch((error) => showMessage(error.message, true));
+  </script>
+</body>
+</html>
