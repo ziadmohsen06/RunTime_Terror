@@ -1,11 +1,13 @@
+import bcrypt from 'bcryptjs';
+
 export class PasswordHasher {
   constructor(private readonly rounds = 10) {}
 
   hash(plain: string): Promise<string> {
-    throw new Error('not implemented');
+    return bcrypt.hash(plain, this.rounds);
   }
 
   verify(plain: string, hash: string): Promise<boolean> {
-    throw new Error('not implemented');
+    return bcrypt.compare(plain, hash);
   }
 }
