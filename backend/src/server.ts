@@ -1,4 +1,4 @@
-
+import 'dotenv/config';
 import Database from 'better-sqlite3';
 import { createApp } from './app';
 import { SystemClock } from './domain/Clock';
