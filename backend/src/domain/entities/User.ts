@@ -5,3 +5,4 @@ export interface User {
 }
 
 export type NewUser = Omit<User, 'id'>;
+export type PublicUser = Omit<User, 'passwordHash'>;
