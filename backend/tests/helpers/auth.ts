@@ -34,3 +34,4 @@ export async function authedAgent(app: Express, email?: string) {
   const user = await registerAndLogin(app, email);
   return request.agent(app).set('Authorization', `Bearer ${user.token}`);
 }
+export type AuthedAgent = Awaited<ReturnType<typeof authedAgent>>;

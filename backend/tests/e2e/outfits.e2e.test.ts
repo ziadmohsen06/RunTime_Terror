@@ -1,6 +1,7 @@
 import Database from 'better-sqlite3';
 import request from 'supertest';
 import { createApp } from '../../src/app';
+import { AuthedAgent, authedAgent } from '../helpers/auth';
 import { ItemStatus } from '../../src/domain/enums/ItemStatus';
 import { SqliteItemRepository } from '../../src/repositories/implementations/SqliteItemRepository';
 import { initRecurringSchema } from '../../src/repositories/implementations/sqlite/recurringSchema';
@@ -8,9 +9,10 @@ import { initRecurringSchema } from '../../src/repositories/implementations/sqli
 describe('Outfits API (E2E)', () => {
   let db: Database.Database;
   let app: ReturnType<typeof createApp>;
+  let api: AuthedAgent;
 
   const addItem = async (category: string, color: string, season = 'All Season') => {
-    const response = await request(app)
+    const response = await api
       .post('/items')
       .send({ name: `${color} ${category}`, category, color, season, fabric: 'cotton' });
     expect(response.status).toBe(201);
@@ -21,10 +23,11 @@ describe('Outfits API (E2E)', () => {
   const setStatus = (id: number, status: ItemStatus) =>
     new SqliteItemRepository(db).updateStatus(id, status);
 
-  beforeEach(() => {
+  beforeEach(async () => {
     db = new Database(':memory:');
     initRecurringSchema(db);
     app = createApp({ db });
+    api = await authedAgent(app);
   });
 
   afterEach(() => {
@@ -37,14 +40,14 @@ describe('Outfits API (E2E)', () => {
     const shirt = await addItem('Shirts', 'White');
     const jeans = await addItem('Jeans', 'Blue');
 
-    const created = await request(app)
+    const created = await api
       .post('/outfits')
       .send({ name: 'Weekend', itemIds: [shirt, jeans] });
 
     expect(created.status).toBe(201);
     expect(created.body.items).toHaveLength(2);
 
-    const list = await request(app).get('/outfits');
+    const list = await api.get('/outfits');
 
     expect(list.status).toBe(200);
     expect(list.body).toHaveLength(1);
@@ -58,7 +61,7 @@ describe('Outfits API (E2E)', () => {
       const shirt = await addItem('Shirts', 'White');
       await setStatus(shirt, status);
 
-      const response = await request(app)
+      const response = await api
         .post('/outfits')
         .send({ name: 'Weekend', itemIds: [shirt] });
 
@@ -68,14 +71,14 @@ describe('Outfits API (E2E)', () => {
   );
 
   it('returns a consistent error for a malformed body', async () => {
-    const response = await request(app).post('/outfits').send(['not', 'an', 'object']);
+    const response = await api.post('/outfits').send(['not', 'an', 'object']);
 
     expect(response.status).toBe(400);
     expect(response.body.error.message).toBe('Outfit name is required');
   });
 
   it('returns 404 for an item that does not exist', async () => {
-    const response = await request(app).post('/outfits').send({ name: 'Look', itemIds: [999] });
+    const response = await api.post('/outfits').send({ name: 'Look', itemIds: [999] });
 
     expect(response.status).toBe(404);
   });
@@ -91,7 +94,7 @@ describe('Outfits API (E2E)', () => {
     await setStatus(dirty, ItemStatus.DIRTY);
     await setStatus(ironing, ItemStatus.IRONING);
 
-    const response = await request(app)
+    const response = await api
       .get('/outfits/suggestions')
       .query({ occasion: 'work', season: 'winter' });
 
@@ -111,7 +114,7 @@ describe('Outfits API (E2E)', () => {
     await addItem('Sweaters', 'Black');
     await addItem('Trousers', 'Navy');
 
-    const response = await request(app)
+    const response = await api
       .get('/outfits/suggestions')
       .query({ occasion: 'work', season: 'winter', limit: '1' });
 
@@ -123,7 +126,7 @@ describe('Outfits API (E2E)', () => {
     [{ occasion: 'work' }, 'Season must be one of: spring, summer, autumn, winter'],
     [{ occasion: 'work', season: 'winter', limit: 'many' }, 'Limit must be a whole number from 1 to 20'],
   ])('rejects the query %j', async (query, message) => {
-    const response = await request(app).get('/outfits/suggestions').query(query);
+    const response = await api.get('/outfits/suggestions').query(query);
 
     expect(response.status).toBe(400);
     expect(response.body.error.message).toBe(message);
@@ -131,16 +134,17 @@ describe('Outfits API (E2E)', () => {
 
   it('keeps outfits in memory when no database is supplied', async () => {
     const memoryApp = createApp();
-    const item = await request(memoryApp)
+    const memoryApi = await authedAgent(memoryApp);
+    const item = await memoryApi
       .post('/items')
       .send({ name: 'Dress', category: 'dress', color: 'red', season: 'Summer', fabric: 'silk' });
 
-    const created = await request(memoryApp)
+    const created = await memoryApi
       .post('/outfits')
       .send({ name: 'Solo', itemIds: [item.body.id] });
 
     expect(created.status).toBe(201);
-    expect((await request(memoryApp).get('/outfits')).body).toHaveLength(1);
+    expect((await memoryApi.get('/outfits')).body).toHaveLength(1);
   });
 
   it.each(['/outfit-builder.html', '/outfit-suggestions.html'])('serves %s', async (page) => {
