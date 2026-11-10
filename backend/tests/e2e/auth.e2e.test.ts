@@ -1,5 +1,7 @@
 import request from 'supertest';
 import { createApp } from '../../src/app';
+import { TokenService } from '../../src/services/auth/TokenService';
+import { authedAgent, registerAndLogin } from '../helpers/auth';
 
 describe('Auth API (E2E)', () => {
   const credentials = { email: 'sara@example.com', password: 'secret123' };
@@ -96,5 +98,83 @@ describe('Auth API (E2E)', () => {
         process.env.JWT_SECRET = saved;
       }
     });
+  });
+});
+
+describe('Protected routes (E2E)', () => {
+  const protectedRoutes = [
+    '/items',
+    '/laundry/loads',
+    '/outfits',
+    '/wearlog',
+    '/recurring-tasks',
+    '/occurrences',
+    '/reminders',
+  ];
+
+  it.each(protectedRoutes)('GET %s without a token returns 401', async (route) => {
+    const res = await request(createApp()).get(route);
+
+    expect(res.status).toBe(401);
+    expect(res.body.error.message).toBe('Authentication required');
+  });
+
+  it('rejects a token that is not valid with 401', async () => {
+    const res = await request(createApp())
+      .get('/items')
+      .set('Authorization', 'Bearer not-a-real-token');
+
+    expect(res.status).toBe(401);
+  });
+
+  it('rejects a tampered token with 401', async () => {
+    const app = createApp();
+    const { token } = await registerAndLogin(app);
+    const [header, , signature] = token.split('.');
+    const forgedPayload = Buffer.from(JSON.stringify({ sub: '999' })).toString('base64url');
+
+    const res = await request(app)
+      .get('/items')
+      .set('Authorization', `Bearer ${header}.${forgedPayload}.${signature}`);
+
+    expect(res.status).toBe(401);
+  });
+
+  it('rejects an expired token with 401', async () => {
+    const app = createApp();
+    const { id } = await registerAndLogin(app);
+    const expired = new TokenService(process.env.JWT_SECRET as string, -10).sign(id);
+
+    const res = await request(app).get('/items').set('Authorization', `Bearer ${expired}`);
+
+    expect(res.status).toBe(401);
+  });
+
+  it('accepts a valid token', async () => {
+    const api = await authedAgent(createApp());
+
+    expect((await api.get('/items')).status).toBe(200);
+  });
+
+  it('keeps /health, the /auth routes and the static pages public', async () => {
+    const app = createApp();
+
+    expect((await request(app).get('/health')).status).toBe(200);
+    expect((await request(app).post('/auth/login').send({})).status).toBe(400);
+    expect((await request(app).get('/wear-log.html')).status).toBe(200);
+  });
+
+  it('gives each user their own data', async () => {
+    const app = createApp();
+    const sara = await authedAgent(app);
+    const omar = await authedAgent(app);
+
+    const created = await sara
+      .post('/items')
+      .send({ name: 'Shirt', category: 'top', color: 'white', season: 'summer', fabric: 'cotton' });
+    expect(created.status).toBe(201);
+
+    expect((await sara.get('/items')).body).toHaveLength(1);
+    expect((await omar.get('/items')).body).toHaveLength(0);
   });
 });
