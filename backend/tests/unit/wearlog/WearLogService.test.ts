@@ -244,4 +244,56 @@ describe('WearLogService', () => {
       expect(stats.mostWorn[0].count).toBe(100);
     });
   });
+
+  // FR3: the user logs the outfit they wore.
+  describe('logWear with a saved outfit', () => {
+    const outfitsFor = (owner: number, list: Array<{ id: number; itemIds: number[] }>) => ({
+      listOutfits: async (userId: number) => (userId === owner ? list : []),
+    });
+
+    it('logs every item of the saved outfit on the given date', async () => {
+      const shirt = await addItem('Shirt');
+      const jeans = await addItem('Jeans');
+      service = new WearLogService(items, new InMemoryWearLogRepository(), clock, outfitsFor(1, [{ id: 5, itemIds: [shirt, jeans] }]));
+
+      const log = await service.logWear(1, { outfitId: 5, wornOn: '2026-11-05' });
+
+      expect(log).toMatchObject({ userId: 1, itemIds: [shirt, jeans], wornOn: '2026-11-05' });
+    });
+
+    it('counts the outfit’s items in the stats', async () => {
+      const shirt = await addItem('Shirt');
+      service = new WearLogService(items, new InMemoryWearLogRepository(), clock, outfitsFor(1, [{ id: 5, itemIds: [shirt] }]));
+      await service.logWear(1, { outfitId: 5 });
+
+      expect((await service.getStats(1)).mostWorn[0]).toMatchObject({ itemId: shirt, count: 1 });
+    });
+
+    it('does not find another user’s outfit', async () => {
+      const shirt = await addItem('Shirt');
+      service = new WearLogService(items, new InMemoryWearLogRepository(), clock, outfitsFor(2, [{ id: 5, itemIds: [shirt] }]));
+      await expect(service.logWear(1, { outfitId: 5 })).rejects.toBeInstanceOf(NotFoundError);
+    });
+
+    it('rejects an outfit that does not exist', async () => {
+      service = new WearLogService(items, new InMemoryWearLogRepository(), clock, outfitsFor(1, []));
+      await expect(service.logWear(1, { outfitId: 9 })).rejects.toBeInstanceOf(NotFoundError);
+    });
+
+    it('rejects an outfit id that is not a positive number', async () => {
+      service = new WearLogService(items, new InMemoryWearLogRepository(), clock, outfitsFor(1, []));
+      await expect(service.logWear(1, { outfitId: 0 })).rejects.toBeInstanceOf(ValidationError);
+      await expect(service.logWear(1, { outfitId: Number.NaN })).rejects.toBeInstanceOf(ValidationError);
+    });
+
+    it('rejects an outfit together with a list of items', async () => {
+      const shirt = await addItem('Shirt');
+      service = new WearLogService(items, new InMemoryWearLogRepository(), clock, outfitsFor(1, [{ id: 5, itemIds: [shirt] }]));
+      await expect(service.logWear(1, { outfitId: 5, itemIds: [shirt] })).rejects.toBeInstanceOf(ValidationError);
+    });
+
+    it('rejects an outfit when the service has no outfit reader', async () => {
+      await expect(service.logWear(1, { outfitId: 5 })).rejects.toBeInstanceOf(NotFoundError);
+    });
+  });
 });

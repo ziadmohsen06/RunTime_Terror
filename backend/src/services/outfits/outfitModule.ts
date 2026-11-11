@@ -24,8 +24,17 @@ function createRepository(db?: Database.Database): IOutfitRepository {
   return new SqliteOutfitRepository(db);
 }
 
-export function createOutfitRouter({ items, db }: OutfitModuleOptions): Router {
+export interface OutfitModule {
+  router: Router;
+  service: OutfitService;
+}
+
+export function createOutfitModule({ items, db }: OutfitModuleOptions): OutfitModule {
   const engine = new MatchingEngine(createDefaultRules());
   const service = new OutfitService(items, createRepository(db), engine);
-  return outfitRoutes(new OutfitController(service));
+  return { router: outfitRoutes(new OutfitController(service)), service };
+}
+
+export function createOutfitRouter(options: OutfitModuleOptions): Router {
+  return createOutfitModule(options).router;
 }

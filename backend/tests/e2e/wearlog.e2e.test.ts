@@ -112,4 +112,41 @@ describe('Wear Log API (E2E)', () => {
     expect(response.status).toBe(200);
     expect(response.type).toBe('text/html');
   });
+
+  // FR3: the user logs the outfits they wore.
+  describe('logging a saved outfit', () => {
+    const saveOutfit = async (agent: AuthedAgent, itemIds: number[]) =>
+      (await agent.post('/outfits').send({ name: 'Friday look', itemIds })).body.id as number;
+
+    it('logs the outfit’s items and counts them in the stats', async () => {
+      const shirt = await addItem('Shirt');
+      const jeans = await addItem('Jeans');
+      const outfit = await saveOutfit(api, [shirt, jeans]);
+
+      const res = await api.post('/wearlog').send({ outfitId: outfit, wornOn: '2026-11-05' });
+
+      expect(res.status).toBe(201);
+      expect(res.body).toMatchObject({ itemIds: [shirt, jeans], wornOn: '2026-11-05' });
+      const stats = (await api.get('/wearlog/stats')).body;
+      expect(stats.mostWorn.map((u: { itemId: number }) => u.itemId)).toEqual([shirt, jeans]);
+    });
+
+    it('cannot log another user’s outfit', async () => {
+      const other = await authedAgent(app);
+      const theirs = (await other.post('/items').send({ name: 'Coat', category: 'top', color: 'black', season: 'All Season', fabric: 'wool' })).body.id;
+      const outfit = await saveOutfit(other, [theirs]);
+
+      const res = await api.post('/wearlog').send({ outfitId: outfit });
+
+      expect(res.status).toBe(404);
+    });
+
+    it('rejects an outfit id that is not a number and an outfit combined with items', async () => {
+      const shirt = await addItem('Shirt');
+      const outfit = await saveOutfit(api, [shirt]);
+
+      expect((await api.post('/wearlog').send({ outfitId: 'abc' })).status).toBe(400);
+      expect((await api.post('/wearlog').send({ outfitId: outfit, itemIds: [shirt] })).status).toBe(400);
+    });
+  });
 });
