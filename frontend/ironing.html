@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ironing Queue</title>
+  <link rel="stylesheet" href="outfits.css">
+  <style>
+    .queue { display: grid; gap: 12px; }
+    .queue-item { border: 1px solid #e4ddd7; border-radius: 8px; padding: 14px; background: #fffdfb; }
+    .queue-item h3 { margin: 0 0 4px; overflow-wrap: anywhere; }
+    .queue-item p { margin: 4px 0; }
+    .queue-item button { width: auto; margin-top: 8px; }
+  </style>
+  <script src="auth.js"></script>
+</head>
+
+<body>
+  <h1>Ironing Queue</h1>
+  <nav>
+    <a href="index.html">My Closet</a>
+    <a href="outfit-builder.html">Build an Outfit</a>
+    <a href="outfit-suggestions.html">Outfit Suggestions</a>
+    <a href="wear-log.html">Wear Log</a>
+    <a href="ironing.html" aria-current="page">Ironing</a>
+  </nav>
+
+  <section>
+    <h2>Washed clothes waiting for the iron</h2>
+    <p class="muted">Each item shows the safest iron temperature for its fabric. Mark it as ironed and it goes back to your closet as clean.</p>
+    <div id="queue" class="queue"></div>
+    <p id="message" role="status"></p>
+  </section>
+
+  <script>
+    const queueList = document.getElementById('queue');
+    const message = document.getElementById('message');
+
+    function showMessage(text, isError = false) {
+      message.textContent = text;
+      message.className = isError ? 'error' : '';
+    }
+
+    function textElement(tag, text, className) {
+      const element = document.createElement(tag);
+      element.textContent = text;
+      if (className) element.className = className;
+      return element;
+    }
+
+    async function readJson(response) {
+      const body = await response.json();
+      if (!response.ok) throw new Error(body.error?.message || 'Something went wrong');
+      return body;
+    }
+
+    function queueCard(entry) {
+      const card = document.createElement('div');
+      card.className = 'queue-item';
+
+      const care = entry.care;
+      const steam = care.steam ? 'steam is fine' : 'no steam';
+
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.textContent = 'Mark as ironed';
+      button.addEventListener('click', () => markIroned(entry, button));
+
+      card.append(
+        textElement('h3', entry.name),
+        textElement('p', `${entry.category}, ${entry.color}, ${entry.fabric}`, 'muted'),
+        textElement('p', `Iron on ${care.setting} (up to ${care.ironTemperatureC}°C), ${steam}.`),
+        textElement('p', care.instructions),
+        button
+      );
+      return card;
+    }
+
+    async function loadQueue() {
+      const queue = await readJson(await authFetch('/ironing/queue'));
+      queueList.replaceChildren(...queue.map(queueCard));
+      if (queue.length === 0) {
+        queueList.append(textElement('p', 'Nothing to iron right now.', 'muted'));
+      }
+    }
+
+    async function markIroned(entry, button) {
+      showMessage('');
+      button.disabled = true;
+      try {
+        await readJson(await authFetch(`/ironing/items/${entry.itemId}/ironed`, { method: 'POST' }));
+        showMessage(`${entry.name} is ironed and back in your closet.`);
+        await loadQueue();
+      } catch (error) {
+        showMessage(error.message, true);
+        button.disabled = false;
+      }
+    }
+
+    loadQueue().catch((error) => showMessage(error.message, true));
+  </script>
+</body>
+</html>

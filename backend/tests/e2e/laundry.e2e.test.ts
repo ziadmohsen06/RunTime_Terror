@@ -35,7 +35,7 @@ describe('Laundry API (E2E)', () => {
 
   it('happy path: dirty items -> load -> washing -> drying -> done, items return to the closet', async () => {
     const shirt = await dirtyItem('white', 'cotton');
-    const linen = await dirtyItem('cream', 'linen'); // temporary care rules: linen needs ironing
+    const linen = await dirtyItem('cream', 'linen'); // linen needs ironing (FabricCareRules)
     const dirty = await api.get('/laundry/dirty-items');
     expect(dirty.status).toBe(200);
     expect(dirty.body).toHaveLength(2);
