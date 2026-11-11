@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Build an Outfit</title>
   <link rel="stylesheet" href="outfits.css">
+  <script src="auth.js"></script>
 </head>
 
 <body>
@@ -93,7 +94,7 @@
     }
 
     async function loadItems() {
-      const items = await readJson(await fetch('/items?status=clean'));
+      const items = await readJson(await authFetch('/items?status=clean'));
       itemChoices.replaceChildren(...items.map(itemChoice));
       if (items.length === 0) {
         itemChoices.append(textElement('p', 'No clean items yet. Add some in My Closet.', 'muted'));
@@ -118,7 +119,7 @@
     }
 
     async function loadOutfits() {
-      const outfits = await readJson(await fetch('/outfits'));
+      const outfits = await readJson(await authFetch('/outfits'));
       savedOutfits.replaceChildren(...outfits.map(outfitCard));
       if (outfits.length === 0) {
         savedOutfits.append(textElement('p', 'No saved outfits yet.', 'muted'));
@@ -131,7 +132,7 @@
       event.preventDefault();
       showMessage('');
       try {
-        const outfit = await readJson(await fetch('/outfits', {
+        const outfit = await readJson(await authFetch('/outfits', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ name: nameInput.value, itemIds: selectedIds() }),

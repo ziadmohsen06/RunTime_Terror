@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Outfit Suggestions</title>
   <link rel="stylesheet" href="outfits.css">
+  <script src="auth.js"></script>
 </head>
 
 <body>
@@ -103,7 +104,7 @@
       });
 
       try {
-        const response = await fetch(`/outfits/suggestions?${query}`);
+        const response = await authFetch(`/outfits/suggestions?${query}`);
         const body = await response.json();
         if (!response.ok) throw new Error(body.error?.message || 'Something went wrong');
 
