@@ -8,6 +8,7 @@ import {
   NotFoundError,
   ValidationError,
 } from '../../domain/errors/AppError';
+import { ConflictError } from '../../domain/errors/ConflictError';
 import { IOccurrenceRepository } from '../../repositories/interfaces/IOccurrenceRepository';
 import { IRecurringTaskRepository } from '../../repositories/interfaces/IRecurringTaskRepository';
 import { IReminderRepository } from '../../repositories/interfaces/IReminderRepository';
@@ -45,6 +46,12 @@ export class RecurringTaskService {
     }
     if (!Object.values(DayOfWeek).includes(dayOfWeek)) {
       throw new ValidationError('A valid day of the week is required');
+    }
+
+    // NFR5: the same task must not exist twice, or it would appear twice in every week.
+    const existing = await this.taskRepo.findActiveByUser(userId);
+    if (existing.some((task) => task.dayOfWeek === dayOfWeek && task.title.toLowerCase() === trimmedTitle.toLowerCase())) {
+      throw new ConflictError(`You already have "${trimmedTitle}" every ${dayOfWeek.toLowerCase()}`);
     }
 
     const task = await this.taskRepo.create({ userId, title: trimmedTitle, dayOfWeek });

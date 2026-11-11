@@ -2,6 +2,7 @@ import { FakeClock } from '../helpers/FakeClock';
 import { DayOfWeek } from '../../src/domain/enums/DayOfWeek';
 import { OccurrenceStatus } from '../../src/domain/enums/OccurrenceStatus';
 import { ValidationError } from '../../src/domain/errors/AppError';
+import { ConflictError } from '../../src/domain/errors/ConflictError';
 import { InMemoryOccurrenceRepository } from '../../src/repositories/implementations/InMemoryOccurrenceRepository';
 import { InMemoryRecurringTaskRepository } from '../../src/repositories/implementations/InMemoryRecurringTaskRepository';
 import { InMemoryReminderRepository } from '../../src/repositories/implementations/InMemoryReminderRepository';
@@ -20,6 +21,21 @@ describe('RecurringTaskService', () => {
     reminderRepo = new InMemoryReminderRepository();
     clock = new FakeClock(new Date('2026-11-02T10:00:00.000Z'));
     service = new RecurringTaskService(taskRepo, occurrenceRepo, reminderRepo, clock);
+  });
+
+  it('rejects the same task on the same day twice, but allows it for another user or day', async () => {
+    await service.createWeekly(1, 'Laundry day', DayOfWeek.SATURDAY);
+
+    await expect(service.createWeekly(1, ' laundry DAY ', DayOfWeek.SATURDAY)).rejects.toBeInstanceOf(ConflictError);
+    await expect(service.createWeekly(1, 'Laundry day', DayOfWeek.SUNDAY)).resolves.toBeDefined();
+    await expect(service.createWeekly(2, 'Laundry day', DayOfWeek.SATURDAY)).resolves.toBeDefined();
+  });
+
+  it('allows the task again after the old one was deactivated', async () => {
+    const task = await service.createWeekly(1, 'Laundry day', DayOfWeek.SATURDAY);
+    await service.deactivate(1, task.id);
+
+    await expect(service.createWeekly(1, 'Laundry day', DayOfWeek.SATURDAY)).resolves.toBeDefined();
   });
 
   it('rejects an empty title', async () => {

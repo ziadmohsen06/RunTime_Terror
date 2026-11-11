@@ -20,6 +20,7 @@ import {
 } from './services/recurring/recurringModule';
 import Database from 'better-sqlite3';
 import { SqliteItemRepository } from './repositories/implementations/SqliteItemRepository';
+import fs from 'fs';
 import path from 'path';
 import { createOutfitModule } from './services/outfits/outfitModule';
 import { createWearLogRouter } from './services/wearlog/wearLogModule';
@@ -37,10 +38,17 @@ function createLoadRepository(db?: Database.Database): ILoadRepository {
   return new SqliteLoadRepository(db);
 }
 
+// The pages sit next to backend/. The path differs by one level between `npm run dev`
+// (src/) and `npm start` (dist/src/), so take whichever folder exists.
+function frontendDir(): string {
+  const candidates = [path.resolve(__dirname, '../../frontend'), path.resolve(__dirname, '../../../frontend')];
+  return candidates.find((dir) => fs.existsSync(dir)) ?? candidates[0];
+}
+
 export function createApp(options: CreateAppOptions = {}) {
   const app = express();
   app.use(express.json());
-  app.use(express.static(path.resolve(__dirname, '../../frontend')));
+  app.use(express.static(frontendDir()));
 
   // Auth: /auth and /health are public. Everything registered after this block needs a valid token.
   const jwtSecret = process.env.JWT_SECRET;
@@ -95,6 +103,9 @@ export function createApp(options: CreateAppOptions = {}) {
   app.use('/occurrences', recurring.occurrenceRouter);
   app.use('/reminders', recurring.reminderRouter);
 
+  app.use((_req, res) => {
+    res.status(404).json({ error: { message: 'Not found' } });
+  });
   app.use(errorHandler);
   return app;
 }
