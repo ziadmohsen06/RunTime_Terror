@@ -8,12 +8,14 @@ import { MatchingEngine } from '../../../src/services/outfits/matching/MatchingE
 import { MatchingRule } from '../../../src/services/outfits/matching/MatchingRule';
 import { createDefaultRules } from '../../../src/services/outfits/matching/defaultRules';
 import { OutfitService } from '../../../src/services/outfits/OutfitService';
+import { SuggestionService } from '../../../src/services/outfits/SuggestionService';
 
 const NOT_CLEAN = Object.values(ItemStatus).filter((status) => status !== ItemStatus.CLEAN);
 
 describe('OutfitService', () => {
   let items: ItemService;
   let service: OutfitService;
+  let suggester: SuggestionService;
 
   const add = (category: string, color = 'black', season = 'All Season', userId = 1) =>
     items.addItem({ userId, name: `${color} ${category}`, category, color, season, fabric: 'cotton' });
@@ -22,16 +24,29 @@ describe('OutfitService', () => {
 
   beforeEach(() => {
     items = new ItemService(new InMemoryItemRepository());
-    service = new OutfitService(
-      items,
-      new InMemoryOutfitRepository(),
-      new MatchingEngine(createDefaultRules())
-    );
+    service = new OutfitService(items, new InMemoryOutfitRepository());
+    suggester = new SuggestionService(items, new MatchingEngine(createDefaultRules()));
   });
 
   // User story: As a user, I want to build an outfit from my own clean items
   // so that I can save a look and wear it later.
   describe('createOutfit', () => {
+    it('keeps the occasion and season an outfit was built for', async () => {
+      const shirt = await add('shirt');
+
+      const outfit = await service.createOutfit(1, { name: 'Brunch', itemIds: [shirt.id], occasion: 'casual', season: 'summer' });
+
+      expect(outfit).toMatchObject({ occasion: 'casual', season: 'summer' });
+      expect(await service.createOutfit(1, { name: 'Plain', itemIds: [shirt.id] })).toMatchObject({ occasion: null, season: null });
+    });
+
+    it('rejects an unknown occasion or season', async () => {
+      const shirt = await add('shirt');
+
+      await expect(service.createOutfit(1, { name: 'X', itemIds: [shirt.id], occasion: 'party-in-space' })).rejects.toThrow(ValidationError);
+      await expect(service.createOutfit(1, { name: 'X', itemIds: [shirt.id], season: 'monsoon' })).rejects.toThrow(ValidationError);
+    });
+
     it('saves an outfit made of the user\'s clean items', async () => {
       const shirt = await add('shirt');
       const jeans = await add('jeans');
@@ -110,7 +125,7 @@ describe('OutfitService', () => {
       await add('jeans');
       await items.updateStatus(dirtyShirt.id, status);
 
-      const suggestions = await service.suggest(1, request);
+      const suggestions = await suggester.suggest(1, request);
 
       expect(suggestions.length).toBeGreaterThan(0);
       expect(allIds(suggestions)).not.toContain(dirtyShirt.id);
@@ -121,7 +136,7 @@ describe('OutfitService', () => {
       await add('jeans');
       await items.updateStatus(shirt.id, ItemStatus.DIRTY);
 
-      expect(await service.suggest(1, request)).toEqual([]);
+      expect(await suggester.suggest(1, request)).toEqual([]);
     });
 
     it('never suggests another user\'s items', async () => {
@@ -129,7 +144,7 @@ describe('OutfitService', () => {
       await add('jeans');
       const theirs = await add('t shirt', 'black', 'All Season', 2);
 
-      expect(allIds(await service.suggest(1, request))).not.toContain(theirs.id);
+      expect(allIds(await suggester.suggest(1, request))).not.toContain(theirs.id);
     });
 
     it('ranks the outfit that fits best first', async () => {
@@ -137,7 +152,7 @@ describe('OutfitService', () => {
       const shirt = await add('shirt', 'white', 'Summer');
       const trousers = await add('trousers', 'black', 'All Season');
 
-      const [best] = await service.suggest(1, { occasion: 'work', season: 'summer' });
+      const [best] = await suggester.suggest(1, { occasion: 'work', season: 'summer' });
 
       expect(best.items.map((item) => item.id).sort()).toEqual([shirt.id, trousers.id].sort());
       expect(best.totalScore).toBe(300);
@@ -147,7 +162,7 @@ describe('OutfitService', () => {
       await add('shirt');
       await add('jeans');
 
-      const [best] = await service.suggest(1, request);
+      const [best] = await suggester.suggest(1, request);
 
       expect(best.breakdown.map((part) => part.rule)).toEqual(['occasion', 'season', 'color']);
     });
@@ -156,7 +171,7 @@ describe('OutfitService', () => {
       await add('Tops', 'White', 'Summer');
       await add('Trousers', 'Navy Blue', 'All Season');
 
-      const [best] = await service.suggest(1, request);
+      const [best] = await suggester.suggest(1, request);
 
       expect(best.totalScore).toBe(300);
     });
@@ -167,7 +182,7 @@ describe('OutfitService', () => {
       await add('jeans');
       await add('shorts');
 
-      expect(await service.suggest(1, { ...request, limit: 2 })).toHaveLength(2);
+      expect(await suggester.suggest(1, { ...request, limit: 2 })).toHaveLength(2);
     });
 
     it('stays fast on a large closet', async () => {
@@ -177,7 +192,7 @@ describe('OutfitService', () => {
         )
       );
 
-      const suggestions = await service.suggest(1, request);
+      const suggestions = await suggester.suggest(1, request);
 
       expect(suggestions).toHaveLength(5);
     });
@@ -187,7 +202,7 @@ describe('OutfitService', () => {
       const summerShirt = await add('shirt', 'white', 'Summer');
       await add('jeans', 'black', 'Summer');
 
-      expect(allIds(await service.suggest(1, request))).toContain(summerShirt.id);
+      expect(allIds(await suggester.suggest(1, request))).toContain(summerShirt.id);
     });
 
     it('does not repeat an outfit that is only part of a better one', async () => {
@@ -196,7 +211,7 @@ describe('OutfitService', () => {
       await add('sneakers');
       await add('jacket');
 
-      const suggestions = await service.suggest(1, request);
+      const suggestions = await suggester.suggest(1, request);
 
       expect(suggestions).toHaveLength(1);
       expect(suggestions[0].items).toHaveLength(4);
@@ -208,7 +223,7 @@ describe('OutfitService', () => {
       await add('sneakers');
       await add('sandals');
 
-      expect(await service.suggest(1, request)).toHaveLength(2);
+      expect(await suggester.suggest(1, request)).toHaveLength(2);
     });
 
     it('uses rules it is given, so a new rule changes the ranking', async () => {
@@ -216,16 +231,12 @@ describe('OutfitService', () => {
         name: 'red',
         score: (candidate) => (candidate.some((item) => item.color === 'red') ? 1000 : 0),
       };
-      service = new OutfitService(
-        items,
-        new InMemoryOutfitRepository(),
-        new MatchingEngine([...createDefaultRules(), preferRed])
-      );
+      suggester = new SuggestionService(items, new MatchingEngine([...createDefaultRules(), preferRed]));
       await add('shirt', 'white');
       const red = await add('t shirt', 'red');
       await add('jeans');
 
-      const [best] = await service.suggest(1, request);
+      const [best] = await suggester.suggest(1, request);
 
       expect(best.items.map((item) => item.id)).toContain(red.id);
     });
@@ -235,7 +246,7 @@ describe('OutfitService', () => {
       ['season', { occasion: 'casual', season: 'monsoon' }],
       ['limit', { occasion: 'casual', season: 'summer', limit: 0 }],
     ])('rejects an invalid %s', async (_label, input) => {
-      await expect(service.suggest(1, input)).rejects.toThrow(ValidationError);
+      await expect(suggester.suggest(1, input)).rejects.toThrow(ValidationError);
     });
   });
 });

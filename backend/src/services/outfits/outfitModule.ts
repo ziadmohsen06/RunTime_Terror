@@ -10,6 +10,7 @@ import { IItemReader } from './IItemReader';
 import { createDefaultRules } from './matching/defaultRules';
 import { MatchingEngine } from './matching/MatchingEngine';
 import { OutfitService } from './OutfitService';
+import { SuggestionService } from './SuggestionService';
 
 export interface OutfitModuleOptions {
   items: IItemReader;
@@ -27,12 +28,14 @@ function createRepository(db?: Database.Database): IOutfitRepository {
 export interface OutfitModule {
   router: Router;
   service: OutfitService;
+  suggestions: SuggestionService;
 }
 
 export function createOutfitModule({ items, db }: OutfitModuleOptions): OutfitModule {
   const engine = new MatchingEngine(createDefaultRules());
-  const service = new OutfitService(items, createRepository(db), engine);
-  return { router: outfitRoutes(new OutfitController(service)), service };
+  const service = new OutfitService(items, createRepository(db));
+  const suggestions = new SuggestionService(items, engine);
+  return { router: outfitRoutes(new OutfitController(service, suggestions)), service, suggestions };
 }
 
 export function createOutfitRouter(options: OutfitModuleOptions): Router {

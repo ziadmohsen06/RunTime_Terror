@@ -63,29 +63,5 @@ describe('Items API (E2E)', () => {
       expect((await api.get('/items/99')).status).toBe(404);
       expect((await api.get('/items/abc')).status).toBe(400);
     });
-
-    it('updates the status of an item', async () => {
-      const app = createApp();
-      const api = await authedAgent(app);
-      const { body: created } = await api.post('/items').send(body);
-
-      const res = await api.patch(`/items/${created.id}/status`).send({ status: 'dirty' });
-
-      expect(res.status).toBe(200);
-      expect(res.body.status).toBe('dirty');
-      expect((await api.get(`/items/${created.id}`)).body.status).toBe('dirty');
-    });
-
-    it('rejects an unknown status and a missing item', async () => {
-      const app = createApp();
-      const api = await authedAgent(app);
-      const { body: created } = await api.post('/items').send(body);
-
-      const bad = await api.patch(`/items/${created.id}/status`).send({ status: 'flying' });
-      expect(bad.status).toBe(400);
-      expect(bad.body.error.message).toContain('Status must be one of');
-
-      expect((await api.patch('/items/99/status').send({ status: 'dirty' })).status).toBe(404);
-    });
   });
 });

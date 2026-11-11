@@ -17,8 +17,8 @@ function normalizeEmail(email: string): string {
   return email.trim().toLowerCase();
 }
 
-function toPublicUser({ id, email }: User): PublicUser {
-  return { id, email };
+function toPublicUser({ id, name, email }: User): PublicUser {
+  return { id, name, email };
 }
 
 export class AuthService {
@@ -28,7 +28,7 @@ export class AuthService {
     private readonly tokens: TokenService
   ) {}
 
-  async register(email: string, password: string): Promise<PublicUser> {
+  async register(email: string, password: string, name = ''): Promise<PublicUser> {
     const normalized = normalizeEmail(email);
     if (!EMAIL_PATTERN.test(normalized)) {
       throw new ValidationError('A valid email is required');
@@ -41,7 +41,7 @@ export class AuthService {
     }
 
     const passwordHash = await this.hasher.hash(password);
-    const user = await this.users.create({ email: normalized, passwordHash });
+    const user = await this.users.create({ name: name.trim(), email: normalized, passwordHash });
     return toPublicUser(user);
   }
 

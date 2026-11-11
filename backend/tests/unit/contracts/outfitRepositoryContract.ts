@@ -13,7 +13,7 @@ export function describeOutfitRepositoryContract(
     });
 
     it('stores an outfit and keeps the order of its items', async () => {
-      const outfit = await repository.create({ userId: 1, name: 'Look', itemIds: [3, 1, 2] });
+      const outfit = await repository.create({ userId: 1, name: 'Look', itemIds: [3, 1, 2], occasion: null, season: null });
 
       expect(outfit.id).toBeGreaterThan(0);
       expect(outfit.createdAt).toBeInstanceOf(Date);
@@ -22,9 +22,9 @@ export function describeOutfitRepositoryContract(
     });
 
     it('returns only the given user\'s outfits, newest first', async () => {
-      const first = await repository.create({ userId: 1, name: 'First', itemIds: [1] });
-      await repository.create({ userId: 2, name: 'Other', itemIds: [2] });
-      const second = await repository.create({ userId: 1, name: 'Second', itemIds: [1] });
+      const first = await repository.create({ userId: 1, name: 'First', itemIds: [1], occasion: null, season: null });
+      await repository.create({ userId: 2, name: 'Other', itemIds: [2], occasion: null, season: null });
+      const second = await repository.create({ userId: 1, name: 'Second', itemIds: [1], occasion: null, season: null });
 
       const outfits = await repository.findAll(1);
 

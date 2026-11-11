@@ -1,4 +1,14 @@
 import { CareRules } from '../laundry/ports';
+import {
+  BaseCare,
+  CareInstruction,
+  HighHeatDecorator,
+  InsideOutDecorator,
+  LowHeatDecorator,
+  NoSteamDecorator,
+  PressingClothDecorator,
+  SteamDecorator,
+} from './careInstructions';
 
 export interface CareInstructions {
   /** Highest safe ironing temperature in degrees Celsius. */
@@ -8,31 +18,30 @@ export interface CareInstructions {
   instructions: string;
 }
 
-interface FabricCare extends CareInstructions {
+interface FabricCare {
   needsIroning: boolean;
+  build: () => CareInstruction;
 }
 
-// Declarative lookup table: supporting a new fabric means adding one line here and
-// changing no code (Open/Closed). Fabrics not listed use the medium default below.
+const low = () => new LowHeatDecorator(new BaseCare());
+const high = () => new HighHeatDecorator(new BaseCare());
+
+// Declarative table: supporting a new fabric means adding one line here and changing no
+// other code (Open/Closed). Each entry composes decorators around the base instruction.
+// Fabrics not listed use the plain base instruction (medium heat).
 const FABRIC_CARE: Readonly<Record<string, FabricCare>> = {
-  linen: { needsIroning: true, ironTemperatureC: 200, setting: 'high', steam: true, instructions: 'Iron while slightly damp, with steam, on the reverse side.' },
-  silk: { needsIroning: true, ironTemperatureC: 110, setting: 'low', steam: false, instructions: 'Iron inside out on low heat. Never use steam.' },
-  satin: { needsIroning: true, ironTemperatureC: 110, setting: 'low', steam: false, instructions: 'Iron inside out on low heat with a pressing cloth.' },
-  cotton: { needsIroning: false, ironTemperatureC: 200, setting: 'high', steam: true, instructions: 'Iron while slightly damp, or use steam.' },
-  denim: { needsIroning: false, ironTemperatureC: 200, setting: 'high', steam: true, instructions: 'Iron inside out on high heat.' },
-  wool: { needsIroning: false, ironTemperatureC: 150, setting: 'medium', steam: true, instructions: 'Use steam or a damp pressing cloth. Do not press flat.' },
-  cashmere: { needsIroning: false, ironTemperatureC: 110, setting: 'low', steam: true, instructions: 'Steam only, or iron on low through a pressing cloth.' },
-  polyester: { needsIroning: false, ironTemperatureC: 110, setting: 'low', steam: false, instructions: 'Iron on low heat. High heat melts the fabric.' },
-  nylon: { needsIroning: false, ironTemperatureC: 110, setting: 'low', steam: false, instructions: 'Iron on low heat through a pressing cloth.' },
+  linen: { needsIroning: true, build: () => new SteamDecorator(high()) },
+  silk: { needsIroning: true, build: () => new NoSteamDecorator(new InsideOutDecorator(low())) },
+  satin: { needsIroning: true, build: () => new NoSteamDecorator(new PressingClothDecorator(new InsideOutDecorator(low()))) },
+  cotton: { needsIroning: false, build: () => new SteamDecorator(high()) },
+  denim: { needsIroning: false, build: () => new InsideOutDecorator(high()) },
+  wool: { needsIroning: false, build: () => new SteamDecorator(new PressingClothDecorator(new BaseCare())) },
+  cashmere: { needsIroning: false, build: () => new SteamDecorator(new PressingClothDecorator(low())) },
+  polyester: { needsIroning: false, build: () => new NoSteamDecorator(low()) },
+  nylon: { needsIroning: false, build: () => new NoSteamDecorator(new PressingClothDecorator(low())) },
 };
 
-const DEFAULT_CARE: FabricCare = {
-  needsIroning: false,
-  ironTemperatureC: 150,
-  setting: 'medium',
-  steam: false,
-  instructions: 'Iron on a medium setting and test a hidden corner first.',
-};
+const DEFAULT_CARE: FabricCare = { needsIroning: false, build: () => new BaseCare() };
 
 const careOf = (fabric: string): FabricCare => FABRIC_CARE[fabric.trim().toLowerCase()] ?? DEFAULT_CARE;
 
@@ -43,7 +52,12 @@ export class FabricCareRules implements CareRules {
   }
 
   careFor(fabric: string): CareInstructions {
-    const { ironTemperatureC, setting, steam, instructions } = careOf(fabric);
-    return { ironTemperatureC, setting, steam, instructions };
+    const care = careOf(fabric).build();
+    return {
+      ironTemperatureC: care.ironTemperatureC(),
+      setting: care.setting(),
+      steam: care.steam(),
+      instructions: care.text(),
+    };
   }
 }

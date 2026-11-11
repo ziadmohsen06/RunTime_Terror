@@ -8,7 +8,12 @@ export function toDateKey(date: Date): string {
 }
 
 export function isValidDateKey(value: string): boolean {
-  return DATE_PATTERN.test(value) && toDateKey(new Date(`${value}T00:00:00Z`)) === value;
+  if (!DATE_PATTERN.test(value)) {
+    return false;
+  }
+  const date = new Date(`${value}T00:00:00Z`);
+  // Month 13 or day 45 gives an Invalid Date, which cannot be turned back into text.
+  return !Number.isNaN(date.getTime()) && toDateKey(date) === value;
 }
 
 export function addDays(dateKey: string, days: number): string {

@@ -66,7 +66,7 @@ describe('Wear Log API (E2E)', () => {
 
   it('does not change item status when a wear is logged', async () => {
     const shirt = await addItem('Shirt');
-    await api.patch(`/items/${shirt}/status`).send({ status: 'dirty' });
+    await api.post(`/laundry/items/${shirt}/dirty`);
 
     await api.post('/wearlog').send({ itemIds: [shirt] });
 

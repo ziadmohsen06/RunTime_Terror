@@ -17,6 +17,7 @@ describe('SqliteUserRepository persistence', () => {
     const db = new Database(':memory:');
     initUserSchema(db);
     const saved = await new SqliteUserRepository(db).create({
+      name: 'Sara',
       email: 'sara@example.com',
       passwordHash: 'hash-1',
     });

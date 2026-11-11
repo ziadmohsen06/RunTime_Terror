@@ -6,6 +6,8 @@ interface OutfitRow {
   id: number;
   user_id: number;
   name: string;
+  occasion: string | null;
+  season: string | null;
   created_at: string;
 }
 
@@ -19,7 +21,7 @@ export class SqliteOutfitRepository implements IOutfitRepository {
   async create(newOutfit: NewOutfit): Promise<Outfit> {
     const createdAt = new Date();
     const insertOutfit = this.db.prepare(
-      'INSERT INTO outfits (user_id, name, created_at) VALUES (?, ?, ?)'
+      'INSERT INTO outfits (user_id, name, occasion, season, created_at) VALUES (?, ?, ?, ?, ?)'
     );
     const insertItem = this.db.prepare(
       'INSERT INTO outfit_items (outfit_id, position, item_id) VALUES (?, ?, ?)'
@@ -29,6 +31,8 @@ export class SqliteOutfitRepository implements IOutfitRepository {
       const { lastInsertRowid } = insertOutfit.run(
         newOutfit.userId,
         newOutfit.name,
+        newOutfit.occasion,
+        newOutfit.season,
         createdAt.toISOString()
       );
       const id = Number(lastInsertRowid);
@@ -51,6 +55,8 @@ export class SqliteOutfitRepository implements IOutfitRepository {
       id: row.id,
       userId: row.user_id,
       name: row.name,
+      occasion: row.occasion,
+      season: row.season,
       itemIds: (selectItems.all(row.id) as OutfitItemRow[]).map(({ item_id }) => item_id),
       createdAt: new Date(row.created_at),
     }));

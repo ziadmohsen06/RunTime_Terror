@@ -20,6 +20,8 @@ describe('SqliteOutfitRepository persistence', () => {
       userId: 1,
       name: 'Look',
       itemIds: [2, 1],
+      occasion: null,
+      season: null,
     });
 
     initOutfitSchema(db);
