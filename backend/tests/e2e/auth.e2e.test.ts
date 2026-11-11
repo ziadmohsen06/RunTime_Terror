@@ -164,6 +164,13 @@ describe('Protected routes (E2E)', () => {
     expect((await request(app).get('/wear-log.html')).status).toBe(200);
   });
 
+  it('serves the login page and the shared script without a token', async () => {
+    const app = createApp();
+
+    expect((await request(app).get('/login.html')).status).toBe(200);
+    expect((await request(app).get('/auth.js')).status).toBe(200);
+  });
+
   it('gives each user their own data', async () => {
     const app = createApp();
     const sara = await authedAgent(app);

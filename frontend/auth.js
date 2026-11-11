@@ -1,0 +1,1 @@
+// Shared by every page: keeps the login token and sends it with API calls.
