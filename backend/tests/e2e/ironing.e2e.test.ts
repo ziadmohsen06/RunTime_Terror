@@ -102,6 +102,13 @@ describe('Ironing API (E2E)', () => {
     expect((await sara.post(`/ironing/items/${cotton}/ironed`)).status).toBe(409);
   });
 
+    it('serves the ironing page without a token, so it can send you to log in', async () => {
+    const res = await request(app).get('/ironing.html');
+
+    expect(res.status).toBe(200);
+    expect(res.text).toContain('Mark as ironed');
+  });
+
   it('needs a token', async () => {
     expect((await request(app).get('/ironing')).status).toBe(401);
     expect((await request(app).post('/ironing/items/1/ironed')).status).toBe(401);
