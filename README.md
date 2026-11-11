@@ -137,8 +137,8 @@ laundry module calls it instead of touching the repository.
 Groups dirty items into loads by color group and fabric group and moves each load
 through `pending`, `washing`, `drying` and `done`. Item status follows the load
 (State pattern in `services/laundry/status`). Loads are stored in SQLite when the
-server runs. Until the ironing module exists, `services/laundry/temporary.ts`
-stands in for the care rules and the ironing queue.
+server runs. When a load is done it asks the ironing module whether each fabric
+needs ironing and hands those items over (see the Ironing module).
 
 | Method and path | Request | Response |
 | --- | --- | --- |
@@ -148,6 +148,72 @@ stands in for the care rules and the ironing queue.
 | `POST /laundry/loads` | `{ "itemIds": [1, 2] }` | 201 and the new load |
 | `POST /laundry/loads/:loadId/advance` | — | 200 and the load at its next stage |
 | `DELETE /laundry/loads/:loadId/items/:itemId` | — | 200 and the load without that item |
+
+## Ironing module
+
+When a laundry load is done, items whose fabric needs ironing go to the ironing queue instead of
+straight back to the closet. Each queued item shows how to iron it. Marking an item as ironed moves
+it from the queue to `clean`.
+
+User story: As a user, I want to see which of my washed clothes need ironing and at what
+temperature, so that I can iron them without damaging them.
+
+### Page
+
+`/ironing.html` lists the queue with each item's iron temperature, the care notes (for example
+"Use steam") and a **Mark as ironed** button. Every page links to it.
+
+### API
+
+| Method and path | Response |
+| --- | --- |
+| `GET /ironing` | 200 and the caller's queue: `[{ item, temperature, notes }]` |
+| `POST /ironing/items/:itemId/ironed` | 200 and the item, now `clean`; 400 for a bad id; 404 if the item does not exist; **403 if it is another user's item**; 409 if it is not waiting to be ironed |
+
+### How it works with Laundry
+
+- The queue is simply the user's items whose status is `ironing`; nothing else is stored. Laundry sets
+  that status, and only this module moves an item on to `clean` (through `ItemService.updateStatus`).
+- Laundry depends on two small interfaces from `services/laundry/ports.ts`, and this module provides
+  them: `CareRules.needsIroning(fabric)` (`FabricCareRules`) and `IroningQueue.enqueue(userId, itemId)`
+  (`IroningService`). `enqueue` checks the handover: the item is the caller's and is in `ironing`.
+- Only linen and silk need ironing today. Change the `NEEDS_IRONING` list in
+  `services/ironing/FabricCareRules.ts` (the Laundry tests rely on cotton going straight to `clean`).
+
+### Care instructions (Decorator pattern)
+
+`CareInstruction` has `getTemperature()` and `getNotes()`. `FabricCare` gives a fabric's hottest safe
+temperature; `SteamDecorator` and `LowHeatDecorator` (both extend `CareDecorator`) wrap it and change
+one thing each. `FabricCareRules.instructionsFor(fabric)` builds the chain:
+
+| Fabric | Temperature | Notes |
+| --- | --- | --- |
+| linen | 230 °C | Use steam |
+| cotton, denim | 200 °C | Use steam |
+| wool, cashmere | 150 °C | Use steam |
+| silk, satin, chiffon, lace, polyester, nylon, acrylic | 110 °C | Use the low heat setting |
+| any other fabric | 150 °C | none |
+
+To add a fabric, add it to the lists at the top of `FabricCare.ts` and `FabricCareRules.ts`.
+
+### Security (NFR)
+
+Each user only sees and changes their own queue: another user's item gets **403**. The rule lives in
+`IroningService` and is tested in `IroningService.test.ts` and `ironing.e2e.test.ts`.
+
+### Programming styles and design
+
+- Declarative: the lookup tables for temperatures and for which fabrics get which extras.
+- Imperative: `instructionsFor` wraps the care step by step.
+- **Decorator:** `SteamDecorator` and `LowHeatDecorator` extend `CareDecorator`.
+- **DIP / ISP:** `IroningService` depends on the small `IroningItemReader`, `ItemStatusUpdater` and
+  `CareInstructionProvider` interfaces, not on concrete classes.
+
+### Tests
+
+Unit: `tests/unit/ironing/` (`FabricCare`, `FabricCareRules`, `IroningService`). E2E:
+`tests/e2e/ironing.e2e.test.ts` (runs items through the real laundry flow; 403 for another user).
+Frontend: `tests/unit/frontend/pages.test.ts` checks the page and the links to it.
 
 ## Recurring Tasks module
 
