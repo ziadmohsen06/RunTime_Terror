@@ -4,9 +4,12 @@ import { ForbiddenError, NotFoundError, ValidationError } from '../../domain/err
 import { IWearLogRepository } from '../../repositories/interfaces/IWearLogRepository';
 import { addDays, isValidDateKey, mondayOf, toDateKey } from './dates';
 import { IWearItemReader } from './IWearItemReader';
+import { IWearOutfitReader } from './IWearOutfitReader';
 
+// FR3: the user logs the outfit they wore (a saved outfit) or the items they wore.
 export interface LogWearInput {
-  itemIds: number[];
+  itemIds?: number[];
+  outfitId?: number;
   wornOn?: string;
 }
 
@@ -45,11 +48,12 @@ export class WearLogService {
   constructor(
     private readonly items: IWearItemReader,
     private readonly logs: IWearLogRepository,
-    private readonly clock: Clock
+    private readonly clock: Clock,
+    private readonly outfits?: IWearOutfitReader
   ) {}
 
   async logWear(userId: number, input: LogWearInput): Promise<WearLog> {
-    const itemIds = this.validItemIds(input.itemIds);
+    const itemIds = await this.itemIdsToLog(userId, input);
     const wornOn = this.validWornOn(input.wornOn);
     await this.requireOwnItems(userId, itemIds);
     // Only a log is saved. Item status belongs to the Laundry module and is not touched.
@@ -117,6 +121,25 @@ export class WearLogService {
 
   private today(): string {
     return toDateKey(this.clock.now());
+  }
+
+  // A saved outfit is logged as the items it contains. Giving both an outfit and items is unclear.
+  private async itemIdsToLog(userId: number, input: LogWearInput): Promise<number[]> {
+    if (input.outfitId === undefined) {
+      return this.validItemIds(input.itemIds);
+    }
+    if (input.itemIds !== undefined && input.itemIds.length > 0) {
+      throw new ValidationError('Log either a saved outfit or a list of items, not both');
+    }
+    if (!Number.isSafeInteger(input.outfitId) || input.outfitId <= 0) {
+      throw new ValidationError('Outfit id must be a positive number');
+    }
+    // Only the user's own outfits are listed, so another user's outfit is simply not found.
+    const outfit = (await this.outfits?.listOutfits(userId))?.find((o) => o.id === input.outfitId);
+    if (!outfit) {
+      throw new NotFoundError(`Outfit ${input.outfitId} not found`);
+    }
+    return this.validItemIds(outfit.itemIds);
   }
 
   private validItemIds(itemIds: unknown): number[] {

@@ -16,6 +16,7 @@ export class WearLogController {
       const body: Record<string, unknown> = isRequestRecord(req.body) ? req.body : {};
       const log = await this.service.logWear(this.userId(req), {
         itemIds: Array.isArray(body.itemIds) ? body.itemIds : [],
+        outfitId: body.outfitId === undefined ? undefined : Number(body.outfitId),
         wornOn: typeof body.wornOn === 'string' ? body.wornOn : undefined,
       });
       res.status(201).json(log);

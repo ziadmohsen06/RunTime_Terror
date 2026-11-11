@@ -345,7 +345,7 @@ Write a class that implements `MatchingRule`, then add it to `createDefaultRules
 
 ## Wear Log module
 
-Lets a user log what they wore (items and a date) and shows wear stats: most worn,
+Lets a user log what they wore (a saved outfit, or items, and a date) and shows wear stats: most worn,
 least worn, items not worn in the last 90 days, and a summary of the current week.
 Logs are stored in SQLite when the server runs.
 
@@ -360,12 +360,13 @@ With `npm run dev` running, open `/wear-log.html`.
 
 | Method and path | Request | Response |
 | --- | --- | --- |
-| `POST /wearlog` | `{ "itemIds": [1, 2], "wornOn": "2026-11-06" }` (`wornOn` optional, default today) | 201 and the log |
+| `POST /wearlog` | `{ "itemIds": [1, 2], "wornOn": "2026-11-06" }` or `{ "outfitId": 3, "wornOn": "2026-11-06" }` (`wornOn` optional, default today) | 201 and the log. An outfit is logged as its items |
 | `GET /wearlog` | — | 200 and the caller's logs, newest first |
 | `GET /wearlog/stats` | — | 200 and `{ mostWorn, leastWorn, notWornIn90Days, weeklySummary }` |
 
-Logging fails with 400 for no items, a repeated item, a badly written date or a future date,
-403 if an item belongs to someone else, and 404 if it does not exist.
+Logging fails with 400 for no items, a repeated item, a badly written date, a future date, or an
+outfit sent together with items; 403 if an item belongs to someone else; and 404 if an item or an
+outfit (another user's outfit counts as missing) does not exist.
 
 ### Rules
 
@@ -374,7 +375,8 @@ Logging fails with 400 for no items, a repeated item, a badly written date or a 
 - **Weekly summary:** the current Monday-to-Sunday week (UTC).
 - **Most and least worn:** top 5 each; least worn includes items worn 0 times; ties are broken by item id.
 - Logging a wear **never changes item status**. The module reads items through
-  `IWearItemReader`, which has no way to change them.
+  `IWearItemReader`, which has no way to change them. Saved outfits are read through
+  `IWearOutfitReader`, which can only list them.
 - "Today" always comes from the shared `Clock`, never from `new Date()`, so tests can set the date.
 
 ### Performance (NFR3)
