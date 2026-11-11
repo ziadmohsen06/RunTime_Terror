@@ -1,4 +1,5 @@
 import { NextFunction, Request, Response } from 'express';
+import { currentUserId } from '../middleware/authenticate';
 import { DayOfWeek } from '../../domain/enums/DayOfWeek';
 import { NotFoundError, ValidationError } from '../../domain/errors/AppError';
 import { RecurringTaskService } from '../../services/recurring/RecurringTaskService';
@@ -7,9 +8,8 @@ import { isRequestRecord, parseAsOfDate, parseResourceId } from './recurringRequ
 export class RecurringTaskController {
   constructor(private readonly service: RecurringTaskService) {}
 
-  // TODO: use req.userId when the shared authentication middleware is added.
-  private userId(_req: Request): number {
-    return 1;
+  private userId(req: Request): number {
+    return currentUserId(req);
   }
 
   list = async (req: Request, res: Response, next: NextFunction) => {

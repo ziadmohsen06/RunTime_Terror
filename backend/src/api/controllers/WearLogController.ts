@@ -1,4 +1,5 @@
 import { NextFunction, Request, Response } from 'express';
+import { currentUserId } from '../middleware/authenticate';
 import { WearLogService } from '../../services/wearlog/WearLogService';
 import { isRequestRecord } from './recurringRequest';
 
@@ -6,9 +7,8 @@ import { isRequestRecord } from './recurringRequest';
 export class WearLogController {
   constructor(private readonly service: WearLogService) {}
 
-  // TEMPORARY: userId is hardcoded until auth middleware is added (same as the other modules).
-  private userId(_req: Request): number {
-    return 1;
+  private userId(req: Request): number {
+    return currentUserId(req);
   }
 
   create = async (req: Request, res: Response, next: NextFunction) => {

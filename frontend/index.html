@@ -77,6 +77,7 @@
       body { margin: 10px auto; padding: 12px; }
     }
   </style>
+  <script src="auth.js"></script>
 </head>
 
 <body>
@@ -197,7 +198,7 @@
       }
 
       try {
-        const response = await fetch('/items?' + params.toString());
+        const response = await authFetch('/items?' + params.toString());
 
         if (!response.ok) {
           throw new Error('Could not load items. HTTP ' + response.status);
@@ -269,7 +270,7 @@
       if (photoUrl) item.photoUrl = photoUrl;
 
       try {
-        const response = await fetch('/items', {
+        const response = await authFetch('/items', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(item)

@@ -23,6 +23,7 @@ import { SqliteItemRepository } from './repositories/implementations/SqliteItemR
 import path from 'path';
 import { createOutfitRouter } from './services/outfits/outfitModule';
 import { createWearLogRouter } from './services/wearlog/wearLogModule';
+import { createAuthModule } from './services/auth/authModule';
 
 export interface CreateAppOptions {
   clock?: Clock;
@@ -40,6 +41,22 @@ export function createApp(options: CreateAppOptions = {}) {
   const app = express();
   app.use(express.json());
   app.use(express.static(path.resolve(__dirname, '../../frontend')));
+
+  // Auth: /auth and /health are public. Everything registered after this block needs a valid token.
+  const jwtSecret = process.env.JWT_SECRET;
+  if (!jwtSecret) {
+    throw new Error('JWT_SECRET is not set. Copy .env.example to .env and set it.');
+  }
+  const auth = createAuthModule({
+    secret: jwtSecret,
+    db: options.db,
+    hashRounds: Number(process.env.BCRYPT_ROUNDS) || undefined,
+  });
+  app.use('/auth', auth.router);
+
+  // Everything below needs a valid token. /health and /auth stay public.
+  app.get('/health', (_req, res) => res.json({ status: 'ok' }));
+  app.use(auth.authenticate);
 
   // Wiring (composition root): each module adds its repo -> service -> controller here.
   const itemRepo = options.db
@@ -74,8 +91,6 @@ export function createApp(options: CreateAppOptions = {}) {
   app.use('/recurring-tasks', recurring.taskRouter);
   app.use('/occurrences', recurring.occurrenceRouter);
   app.use('/reminders', recurring.reminderRouter);
-
-  app.get('/health', (_req, res) => res.json({ status: 'ok' }));
 
   app.use(errorHandler);
   return app;

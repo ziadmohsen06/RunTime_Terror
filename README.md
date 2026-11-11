@@ -30,7 +30,7 @@ docs/               M1 document, diagrams, user stories
 ```bash
 cd backend
 npm install
-cp .env.example .env
+cp .env.example .env   # then set JWT_SECRET in it (see "Auth module")
 npm run dev            # http://localhost:3000/health
 npm test               # all tests
 npm run test:unit
@@ -44,6 +44,78 @@ The M2 beta is backend-first. `frontend/` holds small static pages served by
 Express (`index.html` for closet items, `outfit-builder.html` and
 `outfit-suggestions.html` for outfits). The full frontend and integration are
 reserved for Milestone 3.
+
+## Auth module
+
+Register and log in with an email and a password. Passwords are stored only as bcrypt hashes
+(`bcryptjs`). A login returns a signed token (JWT, valid for 1 hour) that the frontend sends as
+`Authorization: Bearer <token>` on every call.
+
+User story: As a user, I want my own account, so that only I can see and change my closet.
+
+### Setup
+
+Open `backend/.env` and set `JWT_SECRET=` to a long random value. Generate one with:
+
+```bash
+node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"
+```
+
+The server refuses to start without it, and there is no default. `.env` is git-ignored: never
+commit it. Tests set their own secret in `tests/helpers/testEnv.ts`.
+
+### Pages
+
+With `npm run dev` running, open `/`. A visitor without a valid token is sent to `/login.html`,
+where they can log in or choose **Create account**. Every page loads `auth.js`, which keeps the
+token in the browser, shows who is logged in with a **Log out** button, and sends the visitor
+back to the login page when the token is missing or expired.
+
+### API
+
+| Method and path | Request | Response |
+| --- | --- | --- |
+| `POST /auth/register` | `{ "email": "a@b.com", "password": "at least 8 characters" }` | 201 and `{ id, email }`; 400 for a bad email or a short password; 409 if the email is taken |
+| `POST /auth/login` | `{ email, password }` | 200 and `{ token, user }`; 401 for a wrong password or an unknown email (same message for both) |
+
+Every other route needs the token: a missing, invalid, tampered or expired token gets 401.
+`/auth/*`, `/health` and the static pages are public.
+
+### How other modules use it
+
+- **Controllers:** `userId(req)` returns `currentUserId(req)` (from `api/middleware/authenticate.ts`).
+  It throws 401 if no user was recorded, so a route can never run as the wrong user.
+- **E2E tests:** `authedAgent(app)` from `tests/helpers/auth.ts` registers a fresh user through the
+  real endpoints and returns a supertest agent that sends the token on every call. The first user in
+  a new app has id 1. A test that needs two users calls it twice.
+- **Pages:** load `<script src="auth.js"></script>` in the head and call `authFetch(...)` instead of
+  `fetch(...)`. `tests/unit/frontend/pages.test.ts` fails for any page that does not.
+
+### Rules
+
+- Emails are trimmed and lowercased. A password needs at least 8 characters.
+- A wrong password and an unknown email give the same error, so nobody can find out which emails
+  have accounts.
+- The token algorithm is pinned (HS256). A changed payload, a different secret or an expired token
+  is rejected.
+- The `users` table has `id`, `email` (unique) and `password_hash`. `initUserSchema` creates it.
+
+### Design
+
+- **SRP:** `PasswordHasher` hashes, `TokenService` signs and checks tokens, `AuthService` holds the
+  register and login rules, `AuthController` only parses requests.
+- **DIP:** `AuthService` depends on `IUserRepository`; `authModule.ts` does the wiring.
+- **LSP:** the in-memory and SQLite user repositories pass the same contract tests.
+
+### Tests
+
+- Unit: `tests/unit/auth/` (hashing and verifying, token signing, tampered, expired and wrong-secret
+  tokens, the register and login rules including "stored hashed and still verifies"),
+  `tests/unit/api/authenticate.test.ts` (the middleware) and `tests/unit/frontend/` (the browser
+  client and the page checks).
+- Contract: `tests/unit/contracts/userRepositories.contract.test.ts`.
+- E2E: `tests/e2e/auth.e2e.test.ts` (register, login, 401 on every protected area, bad, tampered and
+  expired tokens, users only see their own data).
 
 ## Items module
 
@@ -319,4 +391,3 @@ for 1,000 wear logs is built in under 3 seconds.
 ## Temporary parts to replace
 
 - `InMemoryItemRepository`: swap for a database-backed repository.
-- `ItemController.userId()`: hardcoded to 1 until auth middleware exists.

@@ -1,13 +1,13 @@
 import { NextFunction, Request, Response } from 'express';
+import { currentUserId } from '../middleware/authenticate';
 import { OutfitService } from '../../services/outfits/OutfitService';
 import { isRequestRecord } from './recurringRequest';
 
 export class OutfitController {
   constructor(private readonly service: OutfitService) {}
 
-  // TEMPORARY: userId is hardcoded until auth middleware (Member 4) is added.
-  private userId(_req: Request): number {
-    return 1;
+  private userId(req: Request): number {
+    return currentUserId(req);
   }
 
   list = async (req: Request, res: Response, next: NextFunction) => {

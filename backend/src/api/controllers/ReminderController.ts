@@ -1,13 +1,13 @@
 import { NextFunction, Request, Response } from 'express';
+import { currentUserId } from '../middleware/authenticate';
 import { ReminderService } from '../../services/recurring/ReminderService';
 import { parseResourceId } from './recurringRequest';
 
 export class ReminderController {
   constructor(private readonly service: ReminderService) {}
 
-  // TODO: use req.userId when the shared authentication middleware is added.
-  private userId(_req: Request): number {
-    return 1;
+  private userId(req: Request): number {
+    return currentUserId(req);
   }
 
   list = async (req: Request, res: Response, next: NextFunction) => {
