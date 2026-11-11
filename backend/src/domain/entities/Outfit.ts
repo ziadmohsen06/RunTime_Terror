@@ -5,6 +5,8 @@ export interface Outfit {
   userId: number;
   name: string;
   itemIds: number[];
+  occasion: string | null;
+  season: string | null;
   createdAt: Date;
 }
 

@@ -1,10 +1,14 @@
 import { NextFunction, Request, Response } from 'express';
 import { currentUserId } from '../middleware/authenticate';
 import { OutfitService } from '../../services/outfits/OutfitService';
+import { SuggestionService } from '../../services/outfits/SuggestionService';
 import { isRequestRecord } from './recurringRequest';
 
 export class OutfitController {
-  constructor(private readonly service: OutfitService) {}
+  constructor(
+    private readonly service: OutfitService,
+    private readonly suggestions: SuggestionService
+  ) {}
 
   private userId(req: Request): number {
     return currentUserId(req);
@@ -24,6 +28,8 @@ export class OutfitController {
       const outfit = await this.service.createOutfit(this.userId(req), {
         name: typeof body.name === 'string' ? body.name : '',
         itemIds: Array.isArray(body.itemIds) ? body.itemIds : [],
+        occasion: typeof body.occasion === 'string' ? body.occasion : undefined,
+        season: typeof body.season === 'string' ? body.season : undefined,
       });
       res.status(201).json(outfit);
     } catch (err) {
@@ -34,7 +40,7 @@ export class OutfitController {
   suggest = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { occasion, season, limit } = req.query as Record<string, string | undefined>;
-      const suggestions = await this.service.suggest(this.userId(req), {
+      const suggestions = await this.suggestions.suggest(this.userId(req), {
         occasion: occasion ?? '',
         season: season ?? '',
         limit: limit === undefined ? undefined : Number(limit),

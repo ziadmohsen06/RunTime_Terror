@@ -84,6 +84,11 @@
     </div>
 
     <form id="authForm" novalidate>
+      <div id="nameField" hidden>
+        <label for="name">Name (optional)</label>
+        <input id="name" name="name" type="text" autocomplete="name" maxlength="80">
+      </div>
+
       <label for="email">Email</label>
       <input id="email" name="email" type="email" autocomplete="email" required>
 
@@ -99,6 +104,8 @@
   <script>
     const form = document.getElementById('authForm');
     const emailInput = document.getElementById('email');
+    const nameInput = document.getElementById('name');
+    const nameField = document.getElementById('nameField');
     const passwordInput = document.getElementById('password');
     const passwordHint = document.getElementById('passwordHint');
     const submitButton = document.getElementById('submit');
@@ -115,6 +122,7 @@
       submitButton.textContent = mode === 'login' ? 'Log in' : 'Create account';
       passwordInput.autocomplete = mode === 'login' ? 'current-password' : 'new-password';
       passwordHint.hidden = mode === 'login';
+      nameField.hidden = mode === 'login';
       message.textContent = '';
     }
 
@@ -148,7 +156,7 @@
       try {
         const credentials = { email: emailInput.value, password: passwordInput.value };
         if (mode === 'register') {
-          await postJson('/auth/register', credentials);
+          await postJson('/auth/register', { ...credentials, name: nameInput.value });
         }
         const session = await postJson('/auth/login', credentials);
         Auth.saveSession(session.token, session.user);

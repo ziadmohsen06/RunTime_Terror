@@ -17,7 +17,11 @@ export class AuthController {
   register = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { email, password } = credentialsFrom(req.body);
-      res.status(201).json(await this.service.register(email, password));
+      const name = (req.body as Record<string, unknown>).name;
+      if (name !== undefined && typeof name !== 'string') {
+        throw new ValidationError('Name must be text');
+      }
+      res.status(201).json(await this.service.register(email, password, name));
     } catch (err) {
       next(err);
     }

@@ -31,7 +31,7 @@ describe('AuthService', () => {
     it('returns the new user without the password hash', async () => {
       const user = await auth.register('sara@example.com', 'secret123');
 
-      expect(user).toEqual({ id: expect.any(Number), email: 'sara@example.com' });
+      expect(user).toEqual({ id: expect.any(Number), name: '', email: 'sara@example.com' });
       expect(user).not.toHaveProperty('passwordHash');
     });
 
@@ -45,6 +45,12 @@ describe('AuthService', () => {
       await auth.register('sara@example.com', 'secret123');
 
       await expect(auth.register('SARA@example.com', 'another-pass')).rejects.toThrow(ConflictError);
+    });
+
+    it('stores the display name when one is given', async () => {
+      const user = await auth.register('sara@example.com', 'secret123', '  Sara  ');
+
+      expect(user.name).toBe('Sara');
     });
 
     it('rejects an invalid email', async () => {

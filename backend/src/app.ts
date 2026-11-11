@@ -20,8 +20,9 @@ import {
 } from './services/recurring/recurringModule';
 import Database from 'better-sqlite3';
 import { SqliteItemRepository } from './repositories/implementations/SqliteItemRepository';
+import fs from 'fs';
 import path from 'path';
-import { createOutfitRouter } from './services/outfits/outfitModule';
+import { createOutfitModule } from './services/outfits/outfitModule';
 import { createWearLogRouter } from './services/wearlog/wearLogModule';
 import { createAuthModule } from './services/auth/authModule';
 
@@ -37,10 +38,17 @@ function createLoadRepository(db?: Database.Database): ILoadRepository {
   return new SqliteLoadRepository(db);
 }
 
+// The pages sit next to backend/. The path differs by one level between `npm run dev`
+// (src/) and `npm start` (dist/src/), so take whichever folder exists.
+function frontendDir(): string {
+  const candidates = [path.resolve(__dirname, '../../frontend'), path.resolve(__dirname, '../../../frontend')];
+  return candidates.find((dir) => fs.existsSync(dir)) ?? candidates[0];
+}
+
 export function createApp(options: CreateAppOptions = {}) {
   const app = express();
   app.use(express.json());
-  app.use(express.static(path.resolve(__dirname, '../../frontend')));
+  app.use(express.static(frontendDir()));
 
   // Auth: /auth and /health are public. Everything registered after this block needs a valid token.
   const jwtSecret = process.env.JWT_SECRET;
@@ -67,6 +75,9 @@ export function createApp(options: CreateAppOptions = {}) {
   // Ironing (Mohamed): its care rules and queue are what Laundry uses to decide and hand over.
   const ironing = createIroningModule({ items: itemService });
   // Laundry: Joudy's ItemService.updateStatus is the only way item status changes.
+  // Laundry and ironing are the only modules that change item status, via the state machine.
+  // Ironing owns the care rules and the ironing queue that Laundry depends on.
+  const ironing = createIroningModule({ items: itemService, db: options.db });
   const laundryService = new LaundryService(
     itemRepo,
     createLoadRepository(options.db),
@@ -77,9 +88,11 @@ export function createApp(options: CreateAppOptions = {}) {
   app.use('/laundry', laundryRoutes(new LaundryController(laundryService)));
   app.use('/ironing', ironing.router);
   app.use('/outfits', createOutfitRouter({ items: itemService, db: options.db }));
+  const outfits = createOutfitModule({ items: itemService, db: options.db });
+  app.use('/outfits', outfits.router);
     app.use(
     '/wearlog',
-    createWearLogRouter({ items: itemService, clock: options.clock ?? new SystemClock(), db: options.db })
+    createWearLogRouter({ items: itemService, outfits: outfits.service, clock: options.clock ?? new SystemClock(), db: options.db })
   );
 
   const recurring =
@@ -94,6 +107,9 @@ export function createApp(options: CreateAppOptions = {}) {
   app.use('/occurrences', recurring.occurrenceRouter);
   app.use('/reminders', recurring.reminderRouter);
 
+  app.use((_req, res) => {
+    res.status(404).json({ error: { message: 'Not found' } });
+  });
   app.use(errorHandler);
   return app;
 }

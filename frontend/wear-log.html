@@ -32,6 +32,9 @@
       <label for="wornOn">Date (leave empty for today)</label>
       <input id="wornOn" type="date">
 
+      <label for="outfitChoice">Saved outfit (or pick items below)</label>
+      <select id="outfitChoice"><option value="">No saved outfit</option></select>
+
       <div id="itemChoices" class="item-grid"></div>
 
       <button type="submit" id="logButton" disabled>Log what I wore</button>
@@ -54,6 +57,7 @@
     const form = document.getElementById('wearForm');
     const dateInput = document.getElementById('wornOn');
     const itemChoices = document.getElementById('itemChoices');
+    const outfitChoice = document.getElementById('outfitChoice');
     const logButton = document.getElementById('logButton');
     const message = document.getElementById('message');
 
@@ -81,10 +85,24 @@
 
     function updateLogButton() {
       const count = selectedIds().length;
-      logButton.disabled = count === 0;
-      logButton.textContent = count === 0
-        ? 'Log what I wore'
-        : `Log what I wore (${count} item${count === 1 ? '' : 's'})`;
+      const hasOutfit = outfitChoice.value !== '';
+      // A saved outfit replaces the item checkboxes, so the two are never sent together.
+      itemChoices.style.opacity = hasOutfit ? '0.5' : '';
+      logButton.disabled = count === 0 && !hasOutfit;
+      logButton.textContent = hasOutfit
+        ? 'Log this outfit'
+        : count === 0
+          ? 'Log what I wore'
+          : `Log what I wore (${count} item${count === 1 ? '' : 's'})`;
+    }
+
+    async function loadOutfits() {
+      const outfits = await readJson(await authFetch('/outfits'));
+      outfitChoice.replaceChildren(
+        new Option('No saved outfit', ''),
+        ...outfits.map((outfit) => new Option(outfit.name, outfit.id))
+      );
+      updateLogButton();
     }
 
     // Every item can be logged, whatever its status: logging a wear never changes status.
@@ -141,12 +159,15 @@
     }
 
     itemChoices.addEventListener('change', updateLogButton);
+    outfitChoice.addEventListener('change', updateLogButton);
 
     form.addEventListener('submit', async (event) => {
       event.preventDefault();
       showMessage('');
       try {
-        const body = { itemIds: selectedIds() };
+        const body = outfitChoice.value !== ''
+          ? { outfitId: Number(outfitChoice.value) }
+          : { itemIds: selectedIds() };
         if (dateInput.value) body.wornOn = dateInput.value;
 
         const log = await readJson(await authFetch('/wearlog', {
@@ -163,7 +184,7 @@
       }
     });
 
-    Promise.all([loadItems(), loadStats()]).catch((error) => showMessage(error.message, true));
+    Promise.all([loadItems(), loadOutfits(), loadStats()]).catch((error) => showMessage(error.message, true));
   </script>
 </body>
 </html>

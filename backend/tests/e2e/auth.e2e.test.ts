@@ -11,7 +11,7 @@ describe('Auth API (E2E)', () => {
       const res = await request(createApp()).post('/auth/register').send(credentials);
 
       expect(res.status).toBe(201);
-      expect(res.body).toEqual({ id: expect.any(Number), email: 'sara@example.com' });
+      expect(res.body).toEqual({ id: expect.any(Number), name: '', email: 'sara@example.com' });
     });
 
     it('rejects an email that is already registered with 409', async () => {
@@ -52,7 +52,7 @@ describe('Auth API (E2E)', () => {
 
       expect(res.status).toBe(200);
       expect(res.body.token).toEqual(expect.any(String));
-      expect(res.body.user).toEqual({ id: expect.any(Number), email: 'sara@example.com' });
+      expect(res.body.user).toEqual({ id: expect.any(Number), name: '', email: 'sara@example.com' });
     });
 
     it('rejects a wrong password with 401', async () => {

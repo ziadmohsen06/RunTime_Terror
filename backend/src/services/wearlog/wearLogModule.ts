@@ -8,10 +8,12 @@ import { SqliteWearLogRepository } from '../../repositories/implementations/Sqli
 import { initWearLogSchema } from '../../repositories/implementations/sqlite/wearLogSchema';
 import { IWearLogRepository } from '../../repositories/interfaces/IWearLogRepository';
 import { IWearItemReader } from './IWearItemReader';
+import { IWearOutfitReader } from './IWearOutfitReader';
 import { WearLogService } from './WearLogService';
 
 export interface WearLogModuleOptions {
   items: IWearItemReader;
+  outfits: IWearOutfitReader;
   clock: Clock;
   db?: Database.Database;
 }
@@ -26,7 +28,7 @@ function createRepository(db?: Database.Database): IWearLogRepository {
 }
 
 // Wires repository -> service -> controller -> routes for the Wear Log module.
-export function createWearLogRouter({ items, clock, db }: WearLogModuleOptions): Router {
-  const service = new WearLogService(items, createRepository(db), clock);
+export function createWearLogRouter({ items, outfits, clock, db }: WearLogModuleOptions): Router {
+  const service = new WearLogService(items, createRepository(db), clock, outfits);
   return wearLogRoutes(new WearLogController(service));
 }

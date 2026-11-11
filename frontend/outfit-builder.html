@@ -14,6 +14,7 @@
     <a href="index.html">My Closet</a>
     <a href="outfit-builder.html" aria-current="page">Build an Outfit</a>
     <a href="outfit-suggestions.html">Outfit Suggestions</a>
+    <a href="wear-log.html">Wear Log</a>
     <a href="ironing.html">Ironing</a>
   </nav>
 
@@ -24,6 +25,24 @@
     <form id="outfitForm">
       <label for="outfitName">Outfit name *</label>
       <input id="outfitName" type="text" required placeholder="e.g. Friday at work">
+
+      <label for="outfitOccasion">Occasion (optional)</label>
+      <select id="outfitOccasion">
+        <option value="">Any</option>
+        <option value="casual">Casual</option>
+        <option value="work">Work</option>
+        <option value="formal">Formal</option>
+        <option value="sport">Sport</option>
+      </select>
+
+      <label for="outfitSeason">Season (optional)</label>
+      <select id="outfitSeason">
+        <option value="">Any</option>
+        <option value="spring">Spring</option>
+        <option value="summer">Summer</option>
+        <option value="autumn">Autumn</option>
+        <option value="winter">Winter</option>
+      </select>
 
       <div id="itemChoices" class="item-grid"></div>
 
@@ -136,7 +155,12 @@
         const outfit = await readJson(await authFetch('/outfits', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name: nameInput.value, itemIds: selectedIds() }),
+          body: JSON.stringify({
+            name: nameInput.value,
+            itemIds: selectedIds(),
+            occasion: document.getElementById('outfitOccasion').value || undefined,
+            season: document.getElementById('outfitSeason').value || undefined,
+          }),
         }));
         showMessage(`Saved "${outfit.name}".`);
         form.reset();

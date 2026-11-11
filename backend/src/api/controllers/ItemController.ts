@@ -53,19 +53,6 @@ export class ItemController {
     }
   };
 
-  updateStatus = async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      const item = await this.ownedItem(req);
-      const status = req.body?.status;
-      if (!Object.values(ItemStatus).includes(status)) {
-        throw new ValidationError(`Status must be one of: ${Object.values(ItemStatus).join(', ')}`);
-      }
-      res.json(await this.service.updateStatus(item.id, status as ItemStatus));
-    } catch (err) {
-      next(err);
-    }
-  };
-
   // Another user's item is reported as not found, so ids cannot be probed.
   private async ownedItem(req: Request) {
     const id = Number(req.params.id);
