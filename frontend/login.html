@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Log in - My Closet</title>
+  <script src="auth.js"></script>
+  <style>
+    * { box-sizing: border-box; }
+
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      padding: 20px;
+      background: #f6f3f0;
+      color: #302b28;
+    }
+
+    main {
+      width: 100%;
+      max-width: 400px;
+      background: white;
+      padding: 28px;
+      border-radius: 12px;
+      box-shadow: 0 2px 8px #00000010;
+    }
+
+    h1 { color: #73594b; margin: 0 0 6px; }
+    .lead { margin: 0 0 20px; color: #6b625c; font-size: 14px; }
+
+    .tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 18px; }
+    .tabs button {
+      padding: 10px;
+      border: 1px solid #d5ccc5;
+      border-radius: 6px;
+      background: white;
+      color: #73594b;
+      font-size: 14px;
+      cursor: pointer;
+    }
+    .tabs button[aria-selected='true'] { background: #73594b; border-color: #73594b; color: white; }
+
+    label { display: block; font-size: 14px; margin: 14px 0 6px; }
+    input {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid #d5ccc5;
+      border-radius: 6px;
+      font-size: 14px;
+    }
+    input:focus { outline: 2px solid #73594b55; border-color: #73594b; }
+
+    .hint { margin: 6px 0 0; font-size: 12px; color: #6b625c; }
+
+    #submit {
+      width: 100%;
+      margin-top: 20px;
+      padding: 11px;
+      border: none;
+      border-radius: 6px;
+      background: #73594b;
+      color: white;
+      font-size: 15px;
+      cursor: pointer;
+    }
+    #submit:hover { background: #594235; }
+    #submit:disabled { background: #a89a91; cursor: wait; }
+
+    #message { min-height: 20px; margin: 14px 0 0; font-size: 14px; color: #a12b2b; }
+  </style>
+</head>
+
+<body>
+  <main>
+    <h1>My Closet</h1>
+    <p class="lead">Log in to see your closet, or create an account.</p>
+
+    <div class="tabs" role="tablist">
+      <button type="button" role="tab" id="loginTab" aria-selected="true">Log in</button>
+      <button type="button" role="tab" id="registerTab" aria-selected="false">Create account</button>
+    </div>
+
+    <form id="authForm" novalidate>
+      <label for="email">Email</label>
+      <input id="email" name="email" type="email" autocomplete="email" required>
+
+      <label for="password">Password</label>
+      <input id="password" name="password" type="password" autocomplete="current-password" required>
+      <p class="hint" id="passwordHint" hidden>Use at least 8 characters.</p>
+
+      <button type="submit" id="submit">Log in</button>
+      <p id="message" role="alert"></p>
+    </form>
+  </main>
+
+  <script>
+    const form = document.getElementById('authForm');
+    const emailInput = document.getElementById('email');
+    const passwordInput = document.getElementById('password');
+    const passwordHint = document.getElementById('passwordHint');
+    const submitButton = document.getElementById('submit');
+    const message = document.getElementById('message');
+    const tabs = { login: document.getElementById('loginTab'), register: document.getElementById('registerTab') };
+
+    let mode = 'login';
+
+    function setMode(next) {
+      mode = next;
+      for (const [name, tab] of Object.entries(tabs)) {
+        tab.setAttribute('aria-selected', String(name === mode));
+      }
+      submitButton.textContent = mode === 'login' ? 'Log in' : 'Create account';
+      passwordInput.autocomplete = mode === 'login' ? 'current-password' : 'new-password';
+      passwordHint.hidden = mode === 'login';
+      message.textContent = '';
+    }
+
+    // Only a page of this site is allowed as the place to go next (no links to other sites).
+    function nextPage() {
+      const next = new URLSearchParams(location.search).get('next') || '';
+      return /^[a-z0-9-]+\.html$/i.test(next) && next !== 'login.html' ? next : 'index.html';
+    }
+
+    async function postJson(path, body) {
+      const response = await fetch(path, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error((data.error && data.error.message) || 'Something went wrong. Please try again.');
+      }
+      return data;
+    }
+
+    tabs.login.addEventListener('click', () => setMode('login'));
+    tabs.register.addEventListener('click', () => setMode('register'));
+
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      message.textContent = '';
+      submitButton.disabled = true;
+
+      try {
+        const credentials = { email: emailInput.value, password: passwordInput.value };
+        if (mode === 'register') {
+          await postJson('/auth/register', credentials);
+        }
+        const session = await postJson('/auth/login', credentials);
+        Auth.saveSession(session.token, session.user);
+        location.replace(nextPage());
+      } catch (error) {
+        message.textContent = error.message;
+        submitButton.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>
