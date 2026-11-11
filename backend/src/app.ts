@@ -11,7 +11,7 @@ import { SqliteLoadRepository } from './repositories/implementations/SqliteLoadR
 import { initLoadSchema } from './repositories/implementations/sqlite/loadSchema';
 import { ILoadRepository } from './repositories/interfaces/ILoadRepository';
 import { LaundryService } from './services/laundry/LaundryService';
-import { TemporaryCareRules, TemporaryIroningQueue } from './services/laundry/temporary';
+import { createIroningModule } from './services/ironing/ironingModule';
 import { Clock } from './domain/Clock';
 import { SystemClock } from './domain/Clock';
 import {
@@ -65,15 +65,17 @@ export function createApp(options: CreateAppOptions = {}) {
   const itemService = new ItemService(itemRepo);
   app.use('/items', itemRoutes(new ItemController(itemService)));
   // Laundry: Joudy's ItemService.updateStatus is the only way item status changes.
-  // TEMPORARY: replace the two Temporary* classes with Mohamed's CareRules / IroningQueue.
+  // Ironing owns the care rules and the ironing queue that Laundry depends on.
+  const ironing = createIroningModule({ items: itemService, db: options.db });
   const laundryService = new LaundryService(
     itemRepo,
     createLoadRepository(options.db),
     itemService,
-    new TemporaryCareRules(),
-    new TemporaryIroningQueue()
+    ironing.careRules,
+    ironing.queue
   );
   app.use('/laundry', laundryRoutes(new LaundryController(laundryService)));
+  app.use('/ironing', ironing.router);
   app.use('/outfits', createOutfitRouter({ items: itemService, db: options.db }));
     app.use(
     '/wearlog',

@@ -42,7 +42,7 @@ npm run test:coverage
 
 The M2 beta is backend-first. `frontend/` holds small static pages served by
 Express (`index.html` for closet items, `outfit-builder.html` and
-`outfit-suggestions.html` for outfits). The full frontend and integration are
+`outfit-suggestions.html` for outfits, `wear-log.html`, `ironing.html`). The full frontend and integration are
 reserved for Milestone 3.
 
 ## Auth module
@@ -137,8 +137,8 @@ laundry module calls it instead of touching the repository.
 Groups dirty items into loads by color group and fabric group and moves each load
 through `pending`, `washing`, `drying` and `done`. Item status follows the load
 (State pattern in `services/laundry/status`). Loads are stored in SQLite when the
-server runs. Until the ironing module exists, `services/laundry/temporary.ts`
-stands in for the care rules and the ironing queue.
+server runs. When a load reaches `done`, items whose fabric needs ironing get status
+`ironing` and are handed to the Ironing module's queue; all other items return as `clean`.
 
 | Method and path | Request | Response |
 | --- | --- | --- |
@@ -216,6 +216,29 @@ notification mechanism is implemented in this milestone.
 
 The backend uses Express, Jest, Supertest, and `better-sqlite3` (plus its type
 definitions).
+
+## Ironing and care module
+
+Owns the ironing queue and the care instructions (FR4). Laundry depends on two small
+interfaces from this module (`CareRules.needsIroning` and `IroningQueue.enqueue`), so
+Laundry never touches the queue itself. Only this module moves an item from `ironing` to
+`clean`, through `ItemService.updateStatus`.
+
+- `FabricCareRules` is a lookup table: linen, silk and satin need ironing. Every fabric has
+  a safe iron temperature, a setting (low, medium, high), a steam flag and a short
+  instruction. A fabric that is not listed gets a medium default. Supporting another fabric
+  means adding one line to the table.
+- The queue is stored in SQLite (`ironing_queue`) when the server runs, so it survives a
+  restart. An item can be in the queue only once.
+- Security (NFR4): every route needs a token. A user sees only their own queue, and marking
+  another user's item returns 403 and changes nothing.
+
+| Method and path | Request | Response |
+| --- | --- | --- |
+| `GET /ironing/queue` | — | 200 and the caller's queue, oldest first: `itemId`, `name`, `category`, `color`, `fabric`, `queuedAt`, `care` (`ironTemperatureC`, `setting`, `steam`, `instructions`) |
+| `POST /ironing/items/:itemId/ironed` | — | 200 and the item, now `clean`; 404 unknown item, 403 another user's item, 409 item not in the queue |
+
+Open `/ironing.html` after logging in to see the queue and mark items as ironed.
 
 ## Outfits module
 
@@ -385,9 +408,11 @@ for 1,000 wear logs is built in under 3 seconds.
 
 - Work on feature branches (`feature/<module>-<what>`), merge through pull requests, never push to `main`.
 - Commit the failing test before the code that makes it pass (this is our TDD evidence).
-- Item `status` is changed only by the Laundry module. Items just stores it.
+- Item `status` is written only through `ItemService.updateStatus`. Laundry and Ironing are the modules that change it; the other modules only read it.
 - Shared tables (users, items): tell the team before changing them.
 
-## Temporary parts to replace
+## Known limitations
 
-- `InMemoryItemRepository`: swap for a database-backed repository.
+- Item photos are stored as a URL only; there is no file upload.
+- Reminders are in-app only (no email or push).
+- Passwords are hashed and requests use a signed token; there is no password reset or token refresh.
