@@ -1,4 +1,5 @@
 import { NextFunction, Request, Response } from 'express';
+import { currentUserId } from '../middleware/authenticate';
 import { ItemService } from '../../services/items/ItemService';
 import { ItemStatus } from '../../domain/enums/ItemStatus';
 import { NotFoundError, ValidationError } from '../../domain/errors/AppError';
@@ -6,9 +7,8 @@ import { NotFoundError, ValidationError } from '../../domain/errors/AppError';
 export class ItemController {
   constructor(private readonly service: ItemService) {}
 
-  // TEMPORARY: userId is hardcoded until auth middleware (Member 4) is added.
-  private userId(_req: Request): number {
-    return 1;
+  private userId(req: Request): number {
+    return currentUserId(req);
   }
 
   list = async (req: Request, res: Response, next: NextFunction) => {

@@ -1,4 +1,5 @@
 import { NextFunction, Request, Response } from 'express';
+import { currentUserId } from '../middleware/authenticate';
 import { LaundryService } from '../../services/laundry/LaundryService';
 import { parseId, parseItemIds } from '../validators/laundryValidators';
 
@@ -6,9 +7,8 @@ import { parseId, parseItemIds } from '../validators/laundryValidators';
 export class LaundryController {
   constructor(private readonly service: LaundryService) {}
 
-  // TEMPORARY: userId is hardcoded until auth middleware (Member 4) is added.
-  private userId(_req: Request): number {
-    return 1;
+  private userId(req: Request): number {
+    return currentUserId(req);
   }
 
   markDirty = async (req: Request, res: Response, next: NextFunction) => {
