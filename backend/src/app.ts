@@ -72,6 +72,9 @@ export function createApp(options: CreateAppOptions = {}) {
   : new InMemoryItemRepository();
   const itemService = new ItemService(itemRepo);
   app.use('/items', itemRoutes(new ItemController(itemService)));
+  // Ironing (Mohamed): its care rules and queue are what Laundry uses to decide and hand over.
+  const ironing = createIroningModule({ items: itemService });
+  // Laundry: Joudy's ItemService.updateStatus is the only way item status changes.
   // Laundry and ironing are the only modules that change item status, via the state machine.
   // Ironing owns the care rules and the ironing queue that Laundry depends on.
   const ironing = createIroningModule({ items: itemService, db: options.db });
@@ -84,6 +87,7 @@ export function createApp(options: CreateAppOptions = {}) {
   );
   app.use('/laundry', laundryRoutes(new LaundryController(laundryService)));
   app.use('/ironing', ironing.router);
+  app.use('/outfits', createOutfitRouter({ items: itemService, db: options.db }));
   const outfits = createOutfitModule({ items: itemService, db: options.db });
   app.use('/outfits', outfits.router);
     app.use(

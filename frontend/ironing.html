@@ -3,6 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ironing</title>
+  <link rel="stylesheet" href="outfits.css">
   <title>Ironing Queue</title>
   <link rel="stylesheet" href="outfits.css">
   <style>
@@ -16,6 +18,7 @@
 </head>
 
 <body>
+  <h1>Ironing</h1>
   <h1>Ironing Queue</h1>
   <nav>
     <a href="index.html">My Closet</a>
@@ -26,6 +29,10 @@
   </nav>
 
   <section>
+    <h2>Waiting to be ironed</h2>
+    <p class="muted">Washed clothes that need ironing show up here, with the iron temperature for their fabric.</p>
+
+    <div id="queue"></div>
     <h2>Washed clothes waiting for the iron</h2>
     <p class="muted">Each item shows the safest iron temperature for its fabric. Mark it as ironed and it goes back to your closet as clean.</p>
     <div id="queue" class="queue"></div>
@@ -33,6 +40,7 @@
   </section>
 
   <script>
+    const queue = document.getElementById('queue');
     const queueList = document.getElementById('queue');
     const message = document.getElementById('message');
 
@@ -54,6 +62,25 @@
       return body;
     }
 
+    function taskCard(task) {
+      const card = document.createElement('div');
+      card.className = 'card';
+
+      const head = document.createElement('div');
+      head.className = 'card-head';
+      head.append(textElement('strong', task.item.name), textElement('span', `${task.temperature} °C`, 'score'));
+
+      const details = textElement('p', `${task.item.category}, ${task.item.color}, ${task.item.fabric}`, 'muted');
+
+      const notes = document.createElement('div');
+      notes.className = 'breakdown';
+      notes.append(...task.notes.map((note) => textElement('span', note)));
+
+      const button = textElement('button', 'Mark as ironed');
+      button.type = 'button';
+      button.addEventListener('click', () => markIroned(task, button));
+
+      card.append(head, details, notes, button);
     function queueCard(entry) {
       const card = document.createElement('div');
       card.className = 'queue-item';
@@ -77,6 +104,19 @@
     }
 
     async function loadQueue() {
+      const tasks = await readJson(await authFetch('/ironing'));
+      queue.replaceChildren(...tasks.map(taskCard));
+      if (tasks.length === 0) {
+        queue.append(textElement('p', 'Nothing to iron right now. Clothes that need ironing appear here after a wash.', 'muted'));
+      }
+    }
+
+    async function markIroned(task, button) {
+      button.disabled = true;
+      showMessage('');
+      try {
+        await readJson(await authFetch(`/ironing/items/${task.item.id}/ironed`, { method: 'POST' }));
+        showMessage(`${task.item.name} is ironed and back in your closet.`);
       const queue = await readJson(await authFetch('/ironing/queue'));
       queueList.replaceChildren(...queue.map(queueCard));
       if (queue.length === 0) {
@@ -100,4 +140,5 @@
     loadQueue().catch((error) => showMessage(error.message, true));
   </script>
 </body>
+</html>
 </html>

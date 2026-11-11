@@ -24,4 +24,9 @@ describe('frontend pages', () => {
   it.each(pages)('%s calls the API through authFetch, never plain fetch', (page) => {
     expect(read(page)).not.toMatch(/(?<![\w.])fetch\(/);
   });
+
+    // As a user, I want to reach the ironing queue from every page.
+  it.each(pages.filter((page) => page !== 'ironing.html'))('%s links to the ironing page', (page) => {
+    expect(read(page)).toContain('href="ironing.html"');
+  });
 });
