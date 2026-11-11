@@ -136,8 +136,6 @@ laundry and ironing endpoints, which go through the state machine (NFR1).
 Groups dirty items into loads by color group and fabric group and moves each load
 through `pending`, `washing`, `drying` and `done`. Item status follows the load
 (State pattern in `services/laundry/status`). Loads are stored in SQLite when the
-server runs. When a load is done it asks the ironing module whether each fabric
-needs ironing and hands those items over (see the Ironing module).
 server runs. When a load reaches `done`, items whose fabric needs ironing get status
 `ironing` and are handed to the Ironing module's queue; all other items return as `clean`.
 
@@ -283,32 +281,6 @@ notification mechanism is implemented in this milestone.
 
 The backend uses Express, Jest, Supertest, and `better-sqlite3` (plus its type
 definitions).
-
-## Ironing and care module
-
-Owns the ironing queue and the care instructions (FR4). Laundry depends on two small
-interfaces from this module (`CareRules.needsIroning` and `IroningQueue.enqueue`), so
-Laundry never touches the queue itself. Only this module moves an item from `ironing` to
-`clean`, through `ItemService.updateStatus`. The items API itself has no route that sets a status, so every change goes through the state machine (NFR1).
-
-- `FabricCareRules` is a lookup table: linen, silk and satin need ironing. Each fabric's
-  care instruction is built with the **Decorator pattern** (`careInstructions.ts`:
-  `BaseCare` wrapped in `LowHeatDecorator`, `HighHeatDecorator`, `SteamDecorator`,
-  `NoSteamDecorator`, `InsideOutDecorator`, `PressingClothDecorator`), matching the
-  M1 class diagram. Every fabric ends up with a safe iron temperature, a setting
-  (low, medium, high), a steam flag and a short instruction. A fabric that is not listed
-  gets the medium base. Supporting another fabric means adding one line to the table.
-- The queue is stored in SQLite (`ironing_queue`) when the server runs, so it survives a
-  restart. An item can be in the queue only once.
-- Security (NFR4): every route needs a token. A user sees only their own queue, and marking
-  another user's item returns 403 and changes nothing.
-
-| Method and path | Request | Response |
-| --- | --- | --- |
-| `GET /ironing/queue` | — | 200 and the caller's queue, oldest first: `itemId`, `name`, `category`, `color`, `fabric`, `queuedAt`, `care` (`ironTemperatureC`, `setting`, `steam`, `instructions`) |
-| `POST /ironing/items/:itemId/ironed` | — | 200 and the item, now `clean`; 404 unknown item, 403 another user's item, 409 item not in the queue |
-
-Open `/ironing.html` after logging in to see the queue and mark items as ironed.
 
 ## Outfits module
 
@@ -490,7 +462,7 @@ for 1,000 wear logs is built in under 3 seconds.
 | FR1 Laundry lifecycle (dirty -> loads by color and fabric -> washing -> drying -> clean, ironing items handed on) | `services/laundry` (`LaundryService`, `LoadStageMachine`, `status/*` State pattern), `/laundry/*` | `tests/unit/laundry`, `tests/e2e/laundry.e2e.test.ts` |
 | FR2 Outfit building and occasion/season suggestions ranked by color, clean items only | `services/outfits` (`OutfitService`, `SuggestionService`, `matching/*` Strategy), `/outfits/*` | `tests/unit/outfits`, `tests/e2e/outfits.e2e.test.ts` |
 | FR3 Wear log: log worn outfits, most/least worn, not worn in 90 days, weekly summary | `services/wearlog` (`WearLogService`; the M1 name `WearStatsService` is this service's stats methods), `/wearlog/*` | `tests/unit/wearlog`, `tests/e2e/wearlog.e2e.test.ts` |
-| FR4 Ironing queue, care instructions (iron temperature), mark ironed -> clean | `services/ironing` (`IroningService`, `FabricCareRules`, Decorator in `careInstructions.ts`), `/ironing/*` | `tests/unit/ironing`, `tests/e2e/ironing.e2e.test.ts` |
+| FR4 Ironing queue, care instructions (iron temperature), mark ironed -> clean | `services/ironing` (`IroningService`, `FabricCareRules`, Decorator: `CareInstruction`, `CareDecorator`, `SteamDecorator`, `LowHeatDecorator`), `/ironing` | `tests/unit/ironing`, `tests/e2e/ironing.e2e.test.ts` |
 | FR5 Weekly recurring tasks with reminders | `services/recurring` (`RecurringTaskService`, `WeeklyScheduler`, `ReminderService`) | `tests/unit/RecurringTaskService.test.ts`, `WeeklyScheduler.test.ts`, `SqliteRecurringPersistence.test.ts`, `tests/e2e/recurring.e2e.test.ts` |
 | NFR1 Item in at most one active load; invalid transitions rejected, data unchanged | `ItemStatusMachine`, all-or-nothing `changeStatuses` in `LaundryService`; no status route on `/items` | laundry unit and e2e tests |
 | NFR2 New matching rule without editing the engine | `MatchingEngine` takes a list of `MatchingRule`s (Open/Closed) | `tests/unit/outfits/OutfitService.test.ts` ("uses rules it is given") |
