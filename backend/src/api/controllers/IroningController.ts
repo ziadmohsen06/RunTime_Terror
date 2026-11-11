@@ -7,9 +7,9 @@ import { parseId } from '../validators/laundryValidators';
 export class IroningController {
   constructor(private readonly service: IroningService) {}
 
-  listQueue = async (req: Request, res: Response, next: NextFunction) => {
+  getQueue = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      res.json(await this.service.listQueue(currentUserId(req)));
+      res.json(await this.service.getQueue(currentUserId(req)));
     } catch (err) {
       next(err);
     }

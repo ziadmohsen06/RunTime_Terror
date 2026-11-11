@@ -36,7 +36,7 @@ export class IroningService implements IroningQueue {
     await this.queue.add({ userId, itemId });
   }
 
-  async listQueue(userId: number): Promise<QueuedItem[]> {
+  async getQueue(userId: number): Promise<QueuedItem[]> {
     const entries = await this.queue.findByUser(userId);
     const found = await Promise.all(
       entries.map(async (entry) => ({ entry, item: await this.items.getById(entry.itemId) }))

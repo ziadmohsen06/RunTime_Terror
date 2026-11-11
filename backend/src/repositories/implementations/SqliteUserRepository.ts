@@ -4,12 +4,13 @@ import { IUserRepository } from '../interfaces/IUserRepository';
 
 interface UserRow {
   id: number;
+  name: string;
   email: string;
   password_hash: string;
 }
 
 function mapUser(row: UserRow): User {
-  return { id: row.id, email: row.email, passwordHash: row.password_hash };
+  return { id: row.id, name: row.name, email: row.email, passwordHash: row.password_hash };
 }
 
 export class SqliteUserRepository implements IUserRepository {
@@ -17,10 +18,10 @@ export class SqliteUserRepository implements IUserRepository {
 
   async create(user: NewUser): Promise<User> {
     const result = this.db
-      .prepare('INSERT INTO users (email, password_hash) VALUES (?, ?)')
-      .run(user.email, user.passwordHash);
+      .prepare('INSERT INTO users (name, email, password_hash) VALUES (?, ?, ?)')
+      .run(user.name, user.email, user.passwordHash);
 
-    return { id: Number(result.lastInsertRowid), email: user.email, passwordHash: user.passwordHash };
+    return { id: Number(result.lastInsertRowid), name: user.name, email: user.email, passwordHash: user.passwordHash };
   }
 
   async findByEmail(email: string): Promise<User | null> {

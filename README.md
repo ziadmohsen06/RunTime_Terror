@@ -75,7 +75,7 @@ back to the login page when the token is missing or expired.
 
 | Method and path | Request | Response |
 | --- | --- | --- |
-| `POST /auth/register` | `{ "email": "a@b.com", "password": "at least 8 characters" }` | 201 and `{ id, email }`; 400 for a bad email or a short password; 409 if the email is taken |
+| `POST /auth/register` | `{ "email": "a@b.com", "password": "at least 8 characters", "name": "optional" }` | 201 and `{ id, name, email }`; 400 for a bad email or a short password; 409 if the email is taken |
 | `POST /auth/login` | `{ email, password }` | 200 and `{ token, user }`; 401 for a wrong password or an unknown email (same message for both) |
 
 Every other route needs the token: a missing, invalid, tampered or expired token gets 401.
@@ -127,10 +127,9 @@ Stores closet items. Every item has one status: `clean`, `dirty`, `in_laundry`,
 | `POST /items` | `{ name, category, color, season, fabric }` | 201 and the item |
 | `GET /items?category=&color=&season=&status=` | optional filters | 200 and the caller's items |
 | `GET /items/:id` | — | 200 and the item; 404 if missing or not the caller's |
-| `PATCH /items/:id/status` | `{ "status": "dirty" }` | 200 and the updated item; 400 for an unknown status |
 
-`ItemService.updateStatus` is the only place an item's status is written; the
-laundry module calls it instead of touching the repository.
+Item status is never set directly through the items API: it only changes through the
+laundry and ironing endpoints, which go through the state machine (NFR1).
 
 ## Laundry module
 
@@ -222,12 +221,15 @@ definitions).
 Owns the ironing queue and the care instructions (FR4). Laundry depends on two small
 interfaces from this module (`CareRules.needsIroning` and `IroningQueue.enqueue`), so
 Laundry never touches the queue itself. Only this module moves an item from `ironing` to
-`clean`, through `ItemService.updateStatus`.
+`clean`, through `ItemService.updateStatus`. The items API itself has no route that sets a status, so every change goes through the state machine (NFR1).
 
-- `FabricCareRules` is a lookup table: linen, silk and satin need ironing. Every fabric has
-  a safe iron temperature, a setting (low, medium, high), a steam flag and a short
-  instruction. A fabric that is not listed gets a medium default. Supporting another fabric
-  means adding one line to the table.
+- `FabricCareRules` is a lookup table: linen, silk and satin need ironing. Each fabric's
+  care instruction is built with the **Decorator pattern** (`careInstructions.ts`:
+  `BaseCare` wrapped in `LowHeatDecorator`, `HighHeatDecorator`, `SteamDecorator`,
+  `NoSteamDecorator`, `InsideOutDecorator`, `PressingClothDecorator`), matching the
+  M1 class diagram. Every fabric ends up with a safe iron temperature, a setting
+  (low, medium, high), a steam flag and a short instruction. A fabric that is not listed
+  gets the medium base. Supporting another fabric means adding one line to the table.
 - The queue is stored in SQLite (`ironing_queue`) when the server runs, so it survives a
   restart. An item can be in the queue only once.
 - Security (NFR4): every route needs a token. A user sees only their own queue, and marking
@@ -242,7 +244,7 @@ Open `/ironing.html` after logging in to see the queue and mark items as ironed.
 
 ## Outfits module
 
-Builds outfits and suggests ranked ones. Items are read only through `ItemService`,
+Builds outfits (`OutfitService`) and suggests ranked ones (`SuggestionService`). Items are read only through `ItemService`,
 behind the small `IItemReader` interface, so this module can never change an item.
 Only items with status `clean` can be used: every other status (`dirty`, `in_laundry`,
 `washing`, `drying`, `ironing`) is left out of suggestions and refused when building.
@@ -256,7 +258,7 @@ outfit, and `/outfit-suggestions.html` to choose an occasion and season.
 
 | Method and path | Request | Response |
 | --- | --- | --- |
-| `POST /outfits` | `{ "name": "Friday", "itemIds": [1, 2] }` | 201 and the outfit with its items |
+| `POST /outfits` | `{ "name": "Friday", "itemIds": [1, 2], "occasion": "work", "season": "winter" }` (`occasion`, `season` optional) | 201 and the outfit with its items; 400 for an unknown occasion or season |
 | `GET /outfits` | — | 200 and the caller's outfits, newest first, with each item's current status |
 | `GET /outfits/suggestions?occasion=work&season=winter&limit=5` | `limit` is optional, 1 to 20, default 5 | 200 and ranked `{ items, totalScore, breakdown }` |
 
@@ -412,6 +414,31 @@ for 1,000 wear logs is built in under 3 seconds.
 - Commit the failing test before the code that makes it pass (this is our TDD evidence).
 - Item `status` is written only through `ItemService.updateStatus`. Laundry and Ironing are the modules that change it; the other modules only read it.
 - Shared tables (users, items): tell the team before changing them.
+
+## Requirement traceability (Milestone 1 -> code -> tests)
+
+| M1 requirement | Where it lives | Main tests |
+| --- | --- | --- |
+| FR1 Laundry lifecycle (dirty -> loads by color and fabric -> washing -> drying -> clean, ironing items handed on) | `services/laundry` (`LaundryService`, `LoadStageMachine`, `status/*` State pattern), `/laundry/*` | `tests/unit/laundry`, `tests/e2e/laundry.e2e.test.ts` |
+| FR2 Outfit building and occasion/season suggestions ranked by color, clean items only | `services/outfits` (`OutfitService`, `SuggestionService`, `matching/*` Strategy), `/outfits/*` | `tests/unit/outfits`, `tests/e2e/outfits.e2e.test.ts` |
+| FR3 Wear log: log worn outfits, most/least worn, not worn in 90 days, weekly summary | `services/wearlog` (`WearLogService`; the M1 name `WearStatsService` is this service's stats methods), `/wearlog/*` | `tests/unit/wearlog`, `tests/e2e/wearlog.e2e.test.ts` |
+| FR4 Ironing queue, care instructions (iron temperature), mark ironed -> clean | `services/ironing` (`IroningService`, `FabricCareRules`, Decorator in `careInstructions.ts`), `/ironing/*` | `tests/unit/ironing`, `tests/e2e/ironing.e2e.test.ts` |
+| FR5 Weekly recurring tasks with reminders | `services/recurring` (`RecurringTaskService`, `WeeklyScheduler`, `ReminderService`) | `tests/unit/RecurringTaskService.test.ts`, `WeeklyScheduler.test.ts`, `SqliteRecurringPersistence.test.ts`, `tests/e2e/recurring.e2e.test.ts` |
+| NFR1 Item in at most one active load; invalid transitions rejected, data unchanged | `ItemStatusMachine`, all-or-nothing `changeStatuses` in `LaundryService`; no status route on `/items` | laundry unit and e2e tests |
+| NFR2 New matching rule without editing the engine | `MatchingEngine` takes a list of `MatchingRule`s (Open/Closed) | `tests/unit/outfits/OutfitService.test.ts` ("uses rules it is given") |
+| NFR3 Reports under 3 s for 1,000 logs | `WearLogService` (see Performance section) | `tests/unit/wearlog/WearLogService.test.ts` (1,000-log test) |
+| NFR4 Hashed passwords, token, own data only | `services/auth`, `authenticate` middleware, per-route owner checks | auth unit and e2e tests, 403/404 cases in every module |
+| NFR5 No duplicate task per period; correct after restart | `createIfNotExists` in the occurrence and reminder repositories, SQLite storage | recurring unit, contract and e2e tests |
+
+M1 architecture figure: React UI -> API and auth -> services -> repository interfaces ->
+one database. In this beta the UI is a set of static pages in `frontend/` (the **React UI
+is Milestone 3**); everything below the UI is the layered structure from M1. The M1 sequence
+diagram events 1 to 4 are direct service calls inside the monolith (for example Laundry
+calling `IroningQueue.enqueue`). The M1 document is in `docs/Milestone1_Idea_and_Architecture.pdf`.
+
+Paradigms: imperative code is used for the flows that mutate state (services, controllers);
+declarative code is used for lookups and data shaping (fabric and matching tables,
+`map`/`filter`/`reduce` pipelines, the state transition tables).
 
 ## Known limitations
 

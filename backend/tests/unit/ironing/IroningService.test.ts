@@ -58,14 +58,14 @@ describe('IroningService', () => {
     });
   });
 
-  describe('listQueue', () => {
+  describe('getQueue', () => {
     it('shows each queued item with its care instructions', async () => {
       items.add(1, 7, 'silk');
       items.add(2, 7, 'linen');
       await service.enqueue(7, 1);
       await service.enqueue(7, 2);
 
-      const list = await service.listQueue(7);
+      const list = await service.getQueue(7);
 
       expect(list.map((q) => q.itemId)).toEqual([1, 2]);
       expect(list[0]).toMatchObject({ name: 'item 1', fabric: 'silk' });
@@ -78,18 +78,18 @@ describe('IroningService', () => {
       items.add(2, 8, 'linen');
       await service.enqueue(7, 1);
       await service.enqueue(8, 2);
-      expect((await service.listQueue(7)).map((q) => q.itemId)).toEqual([1]);
+      expect((await service.getQueue(7)).map((q) => q.itemId)).toEqual([1]);
     });
 
     it('skips an entry whose item no longer exists', async () => {
       items.add(1, 7, 'silk');
       await service.enqueue(7, 1);
       await service.enqueue(7, 99);
-      expect((await service.listQueue(7)).map((q) => q.itemId)).toEqual([1]);
+      expect((await service.getQueue(7)).map((q) => q.itemId)).toEqual([1]);
     });
 
     it('is empty when nothing is queued', async () => {
-      expect(await service.listQueue(7)).toEqual([]);
+      expect(await service.getQueue(7)).toEqual([]);
     });
   });
 
