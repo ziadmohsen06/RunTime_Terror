@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ironing</title>
+  <link rel="stylesheet" href="outfits.css">
+  <script src="auth.js"></script>
+</head>
+
+<body>
+  <h1>Ironing</h1>
+  <nav>
+    <a href="index.html">My Closet</a>
+    <a href="outfit-builder.html">Build an Outfit</a>
+    <a href="outfit-suggestions.html">Outfit Suggestions</a>
+    <a href="wear-log.html">Wear Log</a>
+    <a href="ironing.html" aria-current="page">Ironing</a>
+  </nav>
+
+  <section>
+    <h2>Waiting to be ironed</h2>
+    <p class="muted">Washed clothes that need ironing show up here, with the iron temperature for their fabric.</p>
+
+    <div id="queue"></div>
+    <p id="message" role="status"></p>
+  </section>
+
+  <script>
+    const queue = document.getElementById('queue');
+    const message = document.getElementById('message');
+
+    function showMessage(text, isError = false) {
+      message.textContent = text;
+      message.className = isError ? 'error' : '';
+    }
+
+    function textElement(tag, text, className) {
+      const element = document.createElement(tag);
+      element.textContent = text;
+      if (className) element.className = className;
+      return element;
+    }
+
+    async function readJson(response) {
+      const body = await response.json();
+      if (!response.ok) throw new Error(body.error?.message || 'Something went wrong');
+      return body;
+    }
+
+    function taskCard(task) {
+      const card = document.createElement('div');
+      card.className = 'card';
+
+      const head = document.createElement('div');
+      head.className = 'card-head';
+      head.append(textElement('strong', task.item.name), textElement('span', `${task.temperature} °C`, 'score'));
+
+      const details = textElement('p', `${task.item.category}, ${task.item.color}, ${task.item.fabric}`, 'muted');
+
+      const notes = document.createElement('div');
+      notes.className = 'breakdown';
+      notes.append(...task.notes.map((note) => textElement('span', note)));
+
+      const button = textElement('button', 'Mark as ironed');
+      button.type = 'button';
+      button.addEventListener('click', () => markIroned(task, button));
+
+      card.append(head, details, notes, button);
+      return card;
+    }
+
+    async function loadQueue() {
+      const tasks = await readJson(await authFetch('/ironing'));
+      queue.replaceChildren(...tasks.map(taskCard));
+      if (tasks.length === 0) {
+        queue.append(textElement('p', 'Nothing to iron right now. Clothes that need ironing appear here after a wash.', 'muted'));
+      }
+    }
+
+    async function markIroned(task, button) {
+      button.disabled = true;
+      showMessage('');
+      try {
+        await readJson(await authFetch(`/ironing/items/${task.item.id}/ironed`, { method: 'POST' }));
+        showMessage(`${task.item.name} is ironed and back in your closet.`);
+        await loadQueue();
+      } catch (error) {
+        showMessage(error.message, true);
+        button.disabled = false;
+      }
+    }
+
+    loadQueue().catch((error) => showMessage(error.message, true));
+  </script>
+</body>
+</html>
