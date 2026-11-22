@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Recurring tasks</title>
+  <link rel="stylesheet" href="theme.css">
+  <script src="auth.js"></script>
+  <script src="shell.js"></script>
+</head>
+
+<body>
+  <noscript>
+    <nav class="noscript-nav">
+      <a href="index.html">Closet</a>
+      <a href="outfit-builder.html">Outfits</a>
+      <a href="laundry.html">Laundry</a>
+      <a href="ironing.html">Ironing</a>
+      <a href="wear-log.html">Wear log</a>
+      <a href="recurring.html">Recurring tasks</a>
+    </nav>
+  </noscript>
+
+  <main class="main">
+    <h1>Recurring tasks</h1>
+    <p class="muted">Weekly chores like laundry day or a closet check. Each week gets its own to-do and reminder.</p>
+
+    <section class="card static" aria-labelledby="addHeading">
+      <h2 id="addHeading">Add a weekly task</h2>
+      <form id="taskForm">
+        <div class="form-grid">
+          <div>
+            <label for="title">Task title</label>
+            <input id="title" autocomplete="off" placeholder="e.g. Laundry day">
+          </div>
+          <div>
+            <label for="dayOfWeek">Day of the week</label>
+            <select id="dayOfWeek">
+              <option value="MONDAY">Monday</option>
+              <option value="TUESDAY">Tuesday</option>
+              <option value="WEDNESDAY">Wednesday</option>
+              <option value="THURSDAY">Thursday</option>
+              <option value="FRIDAY">Friday</option>
+              <option value="SATURDAY" selected>Saturday</option>
+              <option value="SUNDAY">Sunday</option>
+            </select>
+          </div>
+        </div>
+        <button type="submit" class="btn" id="addButton">Add task</button>
+        <div id="formMessage" role="alert"></div>
+      </form>
+    </section>
+
+    <section class="card static" aria-labelledby="thisWeekHeading">
+      <h2 id="thisWeekHeading">This week <span id="periodLabel" class="muted num"></span></h2>
+      <div id="occurrences"></div>
+    </section>
+
+    <section class="card static" aria-labelledby="remindersHeading">
+      <h2 id="remindersHeading">Reminders <span id="unreadCount" class="count-badge num" hidden></span></h2>
+      <div id="reminders"></div>
+    </section>
+
+    <section class="card static" aria-labelledby="tasksHeading">
+      <h2 id="tasksHeading">My weekly tasks</h2>
+      <div id="tasks"></div>
+    </section>
+  </main>
+
+  <script src="recurring.js"></script>
+</body>
+</html>
