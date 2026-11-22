@@ -5,87 +5,27 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Closet Items - Test Page</title>
-  <style>
-    * { box-sizing: border-box; }
-
-    body {
-      font-family: Arial, sans-serif;
-      max-width: 1000px;
-      margin: 30px auto;
-      padding: 20px;
-      background: #f6f3f0;
-      color: #302b28;
-    }
-
-    h1 { color: #73594b; }
-    h2 { margin-top: 0; }
-
-    section {
-      background: white;
-      padding: 22px;
-      margin: 20px 0;
-      border-radius: 12px;
-      box-shadow: 0 2px 8px #00000010;
-    }
-
-    .form-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-      gap: 14px;
-    }
-
-    label {
-      display: block;
-      font-size: 14px;
-      margin-bottom: 6px;
-    }
-
-    input, select, button {
-      width: 100%;
-      padding: 10px;
-      border: 1px solid #d5ccc5;
-      border-radius: 6px;
-      font-size: 14px;
-    }
-
-    button {
-      background: #73594b;
-      color: white;
-      border: none;
-      cursor: pointer;
-      margin-top: 12px;
-    }
-
-    button:hover { background: #594235; }
-
-    .filters { margin-bottom: 15px; }
-
-    .item {
-      border: 1px solid #e4ddd7;
-      padding: 14px;
-      border-radius: 8px;
-      margin-top: 12px;
-      background: #fffdfb;
-    }
-
-    .item h3 { margin: 0 0 8px; }
-    .item p { margin: 5px 0; }
-    #message { font-weight: bold; }
-    .muted { color: #716961; }
-
-    @media (max-width: 500px) {
-      body { margin: 10px auto; padding: 12px; }
-    }
-  </style>
+  <link rel="stylesheet" href="theme.css">
   <script src="auth.js"></script>
+  <script src="shell.js"></script>
 </head>
 
 <body>
+  <noscript>
+    <nav class="noscript-nav">
+      <a href="index.html">Closet</a>
+      <a href="outfit-builder.html">Outfits</a>
+      <a href="laundry.html">Laundry</a>
+      <a href="ironing.html">Ironing</a>
+      <a href="wear-log.html">Wear log</a>
+      <a href="recurring.html">Recurring tasks</a>
+    </nav>
+  </noscript>
+  <main class="main">
   <h1>My Closet</h1>
-  <p class="muted">Simple frontend for testing the Closet Items API.</p>
-  <p><a href="outfit-builder.html">Build an Outfit</a> | <a href="outfit-suggestions.html">Outfit Suggestions</a> | <a href="wear-log.html">Wear Log</a> | <a href="ironing.html">Ironing</a></p>
+  <p class="muted">Add clothing and filter what you own.</p>
 
-  <section>
+  <section class="card static">
     <h2>Add a clothing item</h2>
 
     <form id="itemForm">
@@ -128,13 +68,13 @@
         </div>
       </div>
 
-      <button type="submit">Add Item</button>
+      <button type="submit" class="btn" id="addButton">Add Item</button>
     </form>
 
     <p id="message" role="status"></p>
   </section>
 
-  <section>
+  <section class="card static">
     <h2>My items</h2>
 
     <div class="form-grid filters">
@@ -157,22 +97,23 @@
         <label for="filterStatus">Filter by status</label>
         <select id="filterStatus">
           <option value="">All statuses</option>
-          <option value="CLEAN">Clean</option>
-          <option value="DIRTY">Dirty</option>
-          <option value="IN_LAUNDRY">In laundry</option>
-          <option value="WASHING">Washing</option>
-          <option value="DRYING">Drying</option>
-          <option value="IRONING">Ironing</option>
+          <option value="clean">Clean</option>
+          <option value="dirty">Dirty</option>
+          <option value="in_laundry">In laundry</option>
+          <option value="washing">Washing</option>
+          <option value="drying">Drying</option>
+          <option value="ironing">Ironing</option>
         </select>
       </div>
     </div>
 
-    <button type="button" id="filterButton">Apply filters</button>
-    <button type="button" id="clearButton">Clear filters</button>
+    <button type="button" class="btn" id="filterButton">Apply filters</button>
+    <button type="button" class="btn btn-secondary" id="clearButton">Clear filters</button>
 
-    <p id="itemCount">Loading items...</p>
-    <div id="itemsList"></div>
+    <p id="itemCount" class="muted num mt">Loading items...</p>
+    <div id="itemsList" class="card-grid"></div>
   </section>
+  </main>
 
   <script>
     const form = document.getElementById('itemForm');
@@ -180,9 +121,23 @@
     const itemsList = document.getElementById('itemsList');
     const itemCount = document.getElementById('itemCount');
 
+    // One message that fills the whole grid: used for loading, empty and error states.
+    function showState(text, loading) {
+      const state = document.createElement('div');
+      state.className = 'state';
+      state.style.gridColumn = '1 / -1';
+      if (loading) {
+        const spinner = document.createElement('span');
+        spinner.className = 'spinner';
+        state.appendChild(spinner);
+      }
+      state.appendChild(document.createTextNode(text));
+      itemsList.replaceChildren(state);
+    }
+
     async function loadItems() {
       itemCount.textContent = 'Loading items...';
-      itemsList.replaceChildren();
+      showState('Loading items...', true);
 
       const params = new URLSearchParams();
 
@@ -209,30 +164,33 @@
         itemCount.textContent = items.length + ' item(s) found';
 
         if (items.length === 0) {
-          itemsList.textContent = 'No items found. Try adding an item!';
+          showState('No items found. Try adding an item!');
           return;
         }
 
+        itemsList.replaceChildren();
+
         for (const item of items) {
           const card = document.createElement('div');
-          card.className = 'item';
+          card.className = 'card';
 
           const title = document.createElement('h3');
           title.textContent = item.name;
           card.appendChild(title);
+          card.appendChild(Shell.statusChip(item.status));
 
           const details = [
             'Category: ' + item.category,
             'Color: ' + item.color,
             'Season: ' + item.season,
             'Fabric: ' + item.fabric,
-            'Status: ' + item.status,
             'ID: ' + item.id
           ];
 
           for (const detail of details) {
             const paragraph = document.createElement('p');
             paragraph.textContent = detail;
+            paragraph.className = 'num';
             card.appendChild(paragraph);
           }
 
@@ -249,8 +207,7 @@
         }
       } catch (error) {
         itemCount.textContent = 'Could not load items.';
-        itemsList.textContent =
-          error.message + ' Make sure the backend is running.';
+        showState(error.message + ' Make sure the backend is running.');
       }
     }
 
@@ -279,11 +236,11 @@
         const result = await response.json();
 
         if (!response.ok) {
-          throw new Error(result.message || 'Could not add item.');
+          throw new Error((result.error && result.error.message) || 'Could not add item.');
         }
 
-        message.textContent =
-          'Item added successfully! Status: ' + result.status;
+        message.textContent = 'Item added successfully!';
+        Shell.toast('Item added', 'success');
 
         form.reset();
         await loadItems();
