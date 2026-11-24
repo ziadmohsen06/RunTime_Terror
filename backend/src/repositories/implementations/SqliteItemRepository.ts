@@ -71,17 +71,17 @@ export class SqliteItemRepository implements IItemRepository {
     const values: (string | number)[] = [userId];
 
     if (filter.category) {
-      conditions.push('category = ?');
+      conditions.push('category = ? COLLATE NOCASE');
       values.push(filter.category);
     }
 
     if (filter.color) {
-      conditions.push('color = ?');
+      conditions.push('color = ? COLLATE NOCASE');
       values.push(filter.color);
     }
 
     if (filter.season) {
-      conditions.push('season = ?');
+      conditions.push('season = ? COLLATE NOCASE');
       values.push(filter.season);
     }
 
