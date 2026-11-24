@@ -4,174 +4,93 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Build an Outfit</title>
-  <link rel="stylesheet" href="outfits.css">
+
+  <link rel="stylesheet" href="theme.css">
   <script src="auth.js"></script>
+  <script src="shell.js"></script>
+  <script src="outfit-builder.js" defer></script>
+
+  <style>
+    /* Scoped to this page: groups the item picker by slot, the way a real outfit is built. */
+    .slot-group { margin-bottom: 16px; }
+    .slot-group h3 {
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--muted);
+      margin-bottom: 8px;
+    }
+    .item-choice {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 12px;
+      border: 1.5px solid var(--border);
+      border-radius: 8px;
+      margin-bottom: 6px;
+      cursor: pointer;
+      transition: border-color 140ms ease-out, background-color 140ms ease-out;
+    }
+    .item-choice:hover { background: var(--nav-hover); }
+    .item-choice:has(input:checked) { border-color: var(--accent); background: var(--accent-soft-bg); }
+    .item-choice input { width: auto; flex: none; }
+    .item-choice .grow { flex: 1 1 auto; min-width: 0; }
+  </style>
 </head>
 
 <body>
-  <h1>Build an Outfit</h1>
-  <nav>
-    <a href="index.html">My Closet</a>
-    <a href="outfit-builder.html" aria-current="page">Build an Outfit</a>
-    <a href="outfit-suggestions.html">Outfit Suggestions</a>
-    <a href="wear-log.html">Wear Log</a>
-    <a href="ironing.html">Ironing</a>
-  </nav>
+  <main class="main">
+    <h1>Build an outfit</h1>
+    <p class="muted">Pick your own clean items and save a look. Occasion and season are optional tags for later.</p>
+    <p><a href="outfit-suggestions.html">Prefer ranked suggestions instead?</a> · <a href="ironing.html">Go to ironing queue</a></p>
 
-  <section>
-    <h2>Pick your items</h2>
-    <p class="muted">Only clean items can be used.</p>
+    <section class="card static">
+      <h2>New outfit</h2>
 
-    <form id="outfitForm">
-      <label for="outfitName">Outfit name *</label>
-      <input id="outfitName" type="text" required placeholder="e.g. Friday at work">
+      <form id="outfitForm">
+        <div class="form-grid">
+          <div>
+            <label for="outfitName">Outfit name *</label>
+            <input id="outfitName" type="text" required placeholder="e.g. Friday at work">
+          </div>
 
-      <label for="outfitOccasion">Occasion (optional)</label>
-      <select id="outfitOccasion">
-        <option value="">Any</option>
-        <option value="casual">Casual</option>
-        <option value="work">Work</option>
-        <option value="formal">Formal</option>
-        <option value="sport">Sport</option>
-      </select>
+          <div>
+            <label for="outfitOccasion">Occasion (optional)</label>
+            <select id="outfitOccasion">
+              <option value="">Any</option>
+              <option value="casual">Casual</option>
+              <option value="work">Work</option>
+              <option value="formal">Formal</option>
+              <option value="sport">Sport</option>
+            </select>
+          </div>
 
-      <label for="outfitSeason">Season (optional)</label>
-      <select id="outfitSeason">
-        <option value="">Any</option>
-        <option value="spring">Spring</option>
-        <option value="summer">Summer</option>
-        <option value="autumn">Autumn</option>
-        <option value="winter">Winter</option>
-      </select>
+          <div>
+            <label for="outfitSeason">Season (optional)</label>
+            <select id="outfitSeason">
+              <option value="">Any</option>
+              <option value="spring">Spring</option>
+              <option value="summer">Summer</option>
+              <option value="autumn">Autumn</option>
+              <option value="winter">Winter</option>
+            </select>
+          </div>
+        </div>
 
-      <div id="itemChoices" class="item-grid"></div>
+        <p class="muted">Only clean items can go into an outfit — dirty or ironing items are left out here.</p>
+        <div id="itemChoices"></div>
 
-      <button type="submit" id="saveButton" disabled>Save outfit</button>
-    </form>
+        <button type="submit" class="btn" id="saveButton" disabled>Save outfit</button>
+      </form>
 
-    <p id="message" role="status"></p>
-  </section>
+      <p id="formMessage" role="status" aria-live="polite"></p>
+    </section>
 
-  <section>
-    <h2>Saved outfits</h2>
-    <div id="savedOutfits"></div>
-  </section>
-
-  <script>
-    const form = document.getElementById('outfitForm');
-    const nameInput = document.getElementById('outfitName');
-    const itemChoices = document.getElementById('itemChoices');
-    const saveButton = document.getElementById('saveButton');
-    const savedOutfits = document.getElementById('savedOutfits');
-    const message = document.getElementById('message');
-
-    function showMessage(text, isError = false) {
-      message.textContent = text;
-      message.className = isError ? 'error' : '';
-    }
-
-    function textElement(tag, text, className) {
-      const element = document.createElement(tag);
-      element.textContent = text;
-      if (className) element.className = className;
-      return element;
-    }
-
-    async function readJson(response) {
-      const body = await response.json();
-      if (!response.ok) throw new Error(body.error?.message || 'Something went wrong');
-      return body;
-    }
-
-    function selectedIds() {
-      return [...itemChoices.querySelectorAll('input:checked')].map((box) => Number(box.value));
-    }
-
-    function updateSaveButton() {
-      const count = selectedIds().length;
-      saveButton.disabled = count === 0;
-      saveButton.textContent = count === 0
-        ? 'Save outfit'
-        : `Save outfit (${count} item${count === 1 ? '' : 's'})`;
-    }
-
-    function itemChoice(item) {
-      const label = document.createElement('label');
-      label.className = 'item-choice';
-
-      const box = document.createElement('input');
-      box.type = 'checkbox';
-      box.value = item.id;
-
-      const text = document.createElement('div');
-      text.append(
-        textElement('strong', item.name),
-        textElement('span', `${item.category}, ${item.color}, ${item.season}`)
-      );
-
-      label.append(box, text);
-      return label;
-    }
-
-    async function loadItems() {
-      const items = await readJson(await authFetch('/items?status=clean'));
-      itemChoices.replaceChildren(...items.map(itemChoice));
-      if (items.length === 0) {
-        itemChoices.append(textElement('p', 'No clean items yet. Add some in My Closet.', 'muted'));
-      }
-      updateSaveButton();
-    }
-
-    function outfitCard(outfit) {
-      const card = textElement('div', '', 'card');
-      card.append(textElement('h3', outfit.name));
-
-      const list = document.createElement('ul');
-      list.append(...outfit.items.map((item) => textElement('li', item.name)));
-      card.append(list);
-
-      const notClean = outfit.items.filter((item) => item.status !== 'clean');
-      if (notClean.length > 0) {
-        const names = notClean.map((item) => item.name).join(', ');
-        card.append(textElement('p', `Not clean right now: ${names}`, 'warning'));
-      }
-      return card;
-    }
-
-    async function loadOutfits() {
-      const outfits = await readJson(await authFetch('/outfits'));
-      savedOutfits.replaceChildren(...outfits.map(outfitCard));
-      if (outfits.length === 0) {
-        savedOutfits.append(textElement('p', 'No saved outfits yet.', 'muted'));
-      }
-    }
-
-    itemChoices.addEventListener('change', updateSaveButton);
-
-    form.addEventListener('submit', async (event) => {
-      event.preventDefault();
-      showMessage('');
-      try {
-        const outfit = await readJson(await authFetch('/outfits', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            name: nameInput.value,
-            itemIds: selectedIds(),
-            occasion: document.getElementById('outfitOccasion').value || undefined,
-            season: document.getElementById('outfitSeason').value || undefined,
-          }),
-        }));
-        showMessage(`Saved "${outfit.name}".`);
-        form.reset();
-      } catch (error) {
-        showMessage(error.message, true);
-      }
-      // Reloading also clears any item that stopped being clean after the page opened.
-      await Promise.all([loadItems(), loadOutfits()]);
-    });
-
-    Promise.all([loadItems(), loadOutfits()]).catch((error) => showMessage(error.message, true));
-  </script>
+    <section class="card static">
+      <h2>Saved outfits</h2>
+      <div id="savedOutfits" class="card-grid"></div>
+    </section>
+  </main>
 </body>
 </html>
