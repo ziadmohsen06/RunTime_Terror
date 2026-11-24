@@ -1,0 +1,113 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>My Closet</title>
+
+  <link rel="stylesheet" href="theme.css">
+  <script src="auth.js"></script>
+  <script src="shell.js"></script>
+  <script src="items.js" defer></script>
+</head>
+
+<body>
+  <main class="main">
+    <h1>My Closet</h1>
+    <p class="muted">Manage your clothes and keep track of their status.</p>
+    <p><a href="ironing.html">Go to ironing queue</a></p>
+
+    <section class="card static">
+      <h2>Add a clothing item</h2>
+
+      <form id="itemForm">
+        <div class="form-grid">
+          <div>
+            <label for="name">Item name *</label>
+            <input id="name" name="name" required placeholder="e.g. White T-shirt">
+          </div>
+
+          <div>
+            <label for="category">Category *</label>
+            <input id="category" name="category" required placeholder="e.g. Tops">
+          </div>
+
+          <div>
+            <label for="color">Color *</label>
+            <input id="color" name="color" required placeholder="e.g. White">
+          </div>
+
+          <div>
+            <label for="season">Season *</label>
+            <select id="season" name="season" required>
+              <option value="">Choose season</option>
+              <option>Spring</option>
+              <option>Summer</option>
+              <option>Autumn</option>
+              <option>Winter</option>
+              <option>All Season</option>
+            </select>
+          </div>
+
+          <div>
+            <label for="fabric">Fabric *</label>
+            <input id="fabric" name="fabric" required placeholder="e.g. Cotton">
+          </div>
+
+          <div>
+            <label for="photoUrl">Photo URL (optional)</label>
+            <input id="photoUrl" name="photoUrl" type="url" placeholder="https://...">
+          </div>
+        </div>
+
+        <button type="submit" class="btn" id="addButton">Add Item</button>
+      </form>
+
+      <p id="formMessage" role="status" aria-live="polite"></p>
+    </section>
+
+    <section class="card static">
+      <h2>My items</h2>
+
+      <div class="chip-row" id="statusFilters" aria-label="Filter items by status">
+        <button type="button" class="chip is-active" data-status="">All</button>
+        <button type="button" class="chip" data-status="clean">Clean</button>
+        <button type="button" class="chip" data-status="dirty">Dirty</button>
+        <button type="button" class="chip" data-status="in_laundry">In laundry</button>
+        <button type="button" class="chip" data-status="ironing">Ironing</button>
+      </div>
+
+      <div class="form-grid filters">
+        <div>
+          <label for="filterCategory">Category</label>
+          <input id="filterCategory" placeholder="e.g. Tops">
+        </div>
+
+        <div>
+          <label for="filterColor">Color</label>
+          <input id="filterColor" placeholder="e.g. White">
+        </div>
+
+        <div>
+          <label for="filterSeason">Season</label>
+          <input id="filterSeason" placeholder="e.g. Summer">
+        </div>
+      </div>
+
+      <div class="filter-actions">
+        <button type="button" class="btn" id="applyFilters">
+          Apply filters
+        </button>
+
+        <button type="button" class="btn btn-secondary" id="clearFilters">
+          Clear filters
+        </button>
+      </div>
+
+      <p id="itemCount" class="muted num mt" aria-live="polite">Loading items...</p>
+      <div id="itemsList" class="card-grid"></div>
+    </section>
+  </main>
+</body>
+</html>
