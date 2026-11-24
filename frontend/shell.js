@@ -6,7 +6,7 @@
 (function () {
   // Every page link lives here. Renaming a page or adding one is a one-line change.
   const NAV = [
-    { label: 'Closet', href: 'index.html' },
+    { label: 'Closet', href: 'items.html' },
     { label: 'Outfits', href: 'outfit-builder.html' },
     { label: 'Laundry', href: 'laundry.html' },
     { label: 'Ironing', href: 'ironing.html' },
