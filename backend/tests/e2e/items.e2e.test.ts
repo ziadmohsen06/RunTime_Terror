@@ -15,6 +15,21 @@ describe('Items API (E2E)', () => {
     expect(list.body).toHaveLength(1);
   });
 
+  it('filters items ignoring letter case, as the Closet page does', async () => {
+    const api = await authedAgent(createApp());
+    await api.post('/items').send({ name: 'Shirt', category: 'Top', color: 'White', season: 'Summer', fabric: 'linen' });
+
+    const list = await api.get('/items').query({ category: 'top', color: 'WHITE', season: 'summer' });
+
+    expect(list.status).toBe(200);
+    expect(list.body).toHaveLength(1);
+  });
+
+  it('rejects a request without a token', async () => {
+    const res = await (await import('supertest')).default(createApp()).get('/items');
+    expect(res.status).toBe(401);
+  });
+
   it('returns a consistent error for invalid input', async () => {
     const api = await authedAgent(createApp());
     const res = await api.post('/items').send({ category: 'top' });

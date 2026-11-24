@@ -2,6 +2,11 @@ import { Item, NewItem } from '../../domain/entities/Item';
 import { ItemStatus } from '../../domain/enums/ItemStatus';
 import { IItemRepository, ItemFilter } from '../interfaces/IItemRepository';
 
+// Matches the SQLite repository, which compares these fields ignoring case.
+function sameText(a: string, b: string): boolean {
+  return a.toLowerCase() === b.toLowerCase();
+}
+
 // TEMPORARY: replace with a database-backed repository (e.g. PostgresItemRepository).
 export class InMemoryItemRepository implements IItemRepository {
   private items: Item[] = [];
@@ -22,9 +27,9 @@ export class InMemoryItemRepository implements IItemRepository {
     return this.items.filter(
       (i) =>
         i.userId === userId &&
-        (!filter.category || i.category === filter.category) &&
-        (!filter.color || i.color === filter.color) &&
-        (!filter.season || i.season === filter.season) &&
+        (!filter.category || sameText(i.category, filter.category)) &&
+        (!filter.color || sameText(i.color, filter.color)) &&
+        (!filter.season || sameText(i.season, filter.season)) &&
         (!filter.status || i.status === filter.status)
     );
   }

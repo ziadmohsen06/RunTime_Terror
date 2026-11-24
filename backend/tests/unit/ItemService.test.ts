@@ -36,6 +36,16 @@ describe('ItemService', () => {
   });
 
   
+  it('filters items by category, color and season ignoring letter case', async () => {
+    await service.addItem({ ...base, name: 'Blue shirt', category: 'Shirt', color: 'Blue', season: 'Summer' });
+    await service.addItem({ ...base, name: 'Red coat', category: 'coat', color: 'red', season: 'winter' });
+
+    const result = await service.listItems(1, { category: 'SHIRT', color: 'blue', season: 'SUMMER' });
+
+    expect(result).toHaveLength(1);
+    expect(result[0].name).toBe('Blue shirt');
+  });
+
   it('filters items by color', async () => {//passed
     await service.addItem({ ...base, name: 'Blue T-shirt', category: 'top', color: 'blue' });
     await service.addItem({ ...base, name: 'Red T-shirt', category: 'top', color: 'red' });
