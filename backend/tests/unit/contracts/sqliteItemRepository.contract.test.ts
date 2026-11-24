@@ -174,4 +174,19 @@ describe('SqliteItemRepository', () => {
     expect(items).toHaveLength(1);
     expect(items[0].name).toBe('User 1 shirt');
     });
+  it('filters by category, color and season ignoring letter case', async () => {
+    await repository.create({
+      userId: 1,
+      name: 'Blue shirt',
+      category: 'Shirt',
+      color: 'Blue',
+      season: 'Summer',
+      fabric: 'cotton',
+    });
+
+    const items = await repository.findAll(1, { category: 'SHIRT', color: 'blue', season: 'SUMMER' });
+
+    expect(items).toHaveLength(1);
+    expect(items[0].name).toBe('Blue shirt');
+  });
 });
