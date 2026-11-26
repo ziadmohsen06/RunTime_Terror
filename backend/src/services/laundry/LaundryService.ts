@@ -125,8 +125,10 @@ export class LaundryService {
       for (const item of items) {
         await this.statusUpdater.updateStatus(item.id, targets.get(item.id)!);
         applied.push(item);
-        await this.itemMachine.enter(item, targets.get(item.id)!); // e.g. entering IRONING joins the queue
       }
+      // Side effects run only after every status is saved, so a failed update never leaves
+      // an item in the ironing queue while its status was rolled back.
+      for (const item of items) await this.itemMachine.enter(item, targets.get(item.id)!); // e.g. entering IRONING joins the queue
       await afterwards();
     } catch (err) {
       for (const item of applied) await this.statusUpdater.updateStatus(item.id, originals.get(item.id)!);
