@@ -1,0 +1,61 @@
+/* Laundry page only. Every color is a token from theme.css; nothing is hardcoded. */
+
+/* A dirty item that can be selected for a load. */
+.pick {
+  display: block;
+  width: 100%;
+  margin-bottom: 0;
+  text-align: left;
+  font: inherit;
+  color: var(--text);
+  cursor: pointer;
+}
+.pick:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.pick .pick-title { display: block; margin-bottom: 4px; font-weight: 600; }
+.pick .meta { display: block; margin-bottom: 8px; color: var(--muted); font-size: 13px; }
+
+/* One laundry load. */
+.load-head { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.load-head h3 { margin: 0; }
+.load-footer { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-top: 14px; }
+
+/* The stage tracker: Pending, Washing, Drying, Done. */
+.stage-tracker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 14px 0;
+  padding: 0;
+  list-style: none;
+}
+.stage {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  border: 1.5px solid var(--border);
+  border-radius: 999px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 500;
+  transition: background-color 140ms ease-out, border-color 140ms ease-out, color 140ms ease-out;
+}
+.stage .dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--border);
+}
+.stage.is-complete {
+  border-color: transparent;
+  background: var(--accent-soft-bg);
+  color: var(--accent-soft-fg);
+}
+.stage.is-complete .dot { background: var(--accent-soft-fg); }
+.stage.is-current {
+  border-color: var(--accent);
+  background: var(--accent-soft-bg);
+  color: var(--accent-soft-fg);
+  font-weight: 600;
+}
+.stage.is-current .dot { background: var(--accent); }
