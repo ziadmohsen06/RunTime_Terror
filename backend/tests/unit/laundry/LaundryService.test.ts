@@ -198,6 +198,19 @@ describe('LaundryService', () => {
       expect((await loadRepo.findById(load.id))!.stage).toBe(LoadStage.DRYING);
     });
 
+    it('does not queue any item for ironing if a status update fails', async () => {
+      const a = await dirtyItem('white', 'linen');
+      const b = await dirtyItem('white', 'linen');
+      const load = await pendingLoad(a, b);
+      await service.advanceLoad(USER, load.id);
+      await service.advanceLoad(USER, load.id);
+      updater.failForItemIds.add(b.id);
+      await expect(service.advanceLoad(USER, load.id)).rejects.toThrow('updateStatus failed');
+      expect(queue.enqueued).toHaveLength(0);
+      expect(await statusOf(a.id)).toBe(ItemStatus.DRYING);
+      expect(await statusOf(b.id)).toBe(ItemStatus.DRYING);
+    });
+
     it('a finished load frees its items for a new load', async () => {
       const a = await dirtyItem('white', 'cotton');
       const load = await pendingLoad(a);
