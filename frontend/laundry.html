@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Laundry</title>
+  <link rel="stylesheet" href="theme.css">
+  <link rel="stylesheet" href="laundry.css">
+  <script src="auth.js"></script>
+  <script src="shell.js"></script>
+</head>
+
+<body>
+  <noscript>
+    <nav class="noscript-nav">
+      <a href="items.html">Closet</a>
+      <a href="outfit-builder.html">Outfits</a>
+      <a href="laundry.html">Laundry</a>
+      <a href="ironing.html">Ironing</a>
+      <a href="wear-log.html">Wear log</a>
+      <a href="recurring.html">Recurring tasks</a>
+    </nav>
+  </noscript>
+
+  <main class="main">
+    <h1>Laundry</h1>
+    <p class="muted">Mark clothes dirty, wash them in loads of the same color and fabric group, and follow each load until it is done.</p>
+
+    <section class="card static" aria-labelledby="cleanHeading">
+      <h2 id="cleanHeading">1. Mark items dirty</h2>
+      <div id="cleanItems"></div>
+    </section>
+
+    <section class="card static" aria-labelledby="dirtyHeading">
+      <h2 id="dirtyHeading">2. Create a load</h2>
+      <p class="muted">Select dirty items of the same color group and fabric group.</p>
+      <div id="dirtyItems"></div>
+      <button type="button" class="btn mt" id="createLoadButton" disabled>Create load</button>
+    </section>
+
+    <section class="card static" aria-labelledby="loadsHeading">
+      <h2 id="loadsHeading">3. Your loads</h2>
+      <div id="loads"></div>
+    </section>
+  </main>
+
+  <script src="laundry-logic.js"></script>
+  <script src="laundry.js"></script>
+</body>
+</html>

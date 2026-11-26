@@ -12,27 +12,23 @@ import { LoadStageMachine } from './LoadStageMachine';
 import { CareRules, IroningQueue, ItemStatusUpdater } from './ports';
 import { ItemStatusMachine } from './status/ItemStatusMachine';
 
-// While a load is in these stages, its items have the matching status (declarative).
-const ITEM_STATUS_DURING: Partial<Record<LoadStage, ItemStatus>> = {
-  [LoadStage.WASHING]: ItemStatus.WASHING,
-  [LoadStage.DRYING]: ItemStatus.DRYING,
-};
-
 export class LaundryService {
   constructor(
     private readonly items: IItemRepository,
     private readonly loads: ILoadRepository,
     private readonly statusUpdater: ItemStatusUpdater, // Joudy: the only way status changes
-    private readonly careRules: CareRules, // Mohamed
-    private readonly ironingQueue: IroningQueue, // Mohamed
-    private readonly itemMachine = new ItemStatusMachine(),
+    careRules: CareRules, // Mohamed: used by the Drying state to choose ironing or clean
+    ironingQueue: IroningQueue, // Mohamed: used by the Ironing state when an item enters it
+    private readonly itemMachine = new ItemStatusMachine(careRules, ironingQueue),
     private readonly stageMachine = new LoadStageMachine()
   ) {}
 
   async markDirty(userId: number, itemId: number): Promise<Item> {
     const item = await this.ownedItem(userId, itemId);
     this.itemMachine.assertTransition(item.status, ItemStatus.DIRTY);
-    return this.statusUpdater.updateStatus(item.id, ItemStatus.DIRTY);
+    const updated = await this.statusUpdater.updateStatus(item.id, ItemStatus.DIRTY);
+    await this.itemMachine.enter(item, ItemStatus.DIRTY);
+    return updated;
   }
 
   async listDirtyItems(userId: number): Promise<Item[]> {
@@ -77,12 +73,11 @@ export class LaundryService {
     const load = await this.ownedLoad(userId, loadId);
     const nextStage = this.stageMachine.next(load.stage); // rejects a DONE load
     const items = await Promise.all(load.itemIds.map((id) => this.ownedItem(userId, id)));
-    const targets = new Map(items.map((i) => [i.id, this.targetStatus(nextStage, i)]));
+    // Each item's current state decides where it goes next (no status checks in the service).
+    const targets = new Map(items.map((i) => [i.id, this.itemMachine.nextStatus(i)]));
 
     let advanced!: LaundryLoad;
     await this.changeStatuses(items, targets, async () => {
-      const toIron = items.filter((i) => targets.get(i.id) === ItemStatus.IRONING);
-      for (const item of toIron) await this.ironingQueue.enqueue(userId, item.id);
       advanced = await this.loads.update({ ...load, stage: nextStage });
     });
     return advanced;
@@ -109,20 +104,13 @@ export class LaundryService {
 
   // ---- helpers ----
 
-  private targetStatus(stage: LoadStage, item: Item): ItemStatus {
-    if (stage === LoadStage.DONE) {
-      return this.careRules.needsIroning(item.fabric) ? ItemStatus.IRONING : ItemStatus.CLEAN;
-    }
-    return ITEM_STATUS_DURING[stage]!;
-  }
-
   private sameTarget(items: Item[], status: ItemStatus): Map<number, ItemStatus> {
     return new Map(items.map((i) => [i.id, status]));
   }
 
   /**
    * All-or-nothing: (1) check every transition with the state machine, (2) apply them through
-   * updateStatus, (3) run `afterwards`. If anything fails, already-changed items are restored.
+   * updateStatus and run each new state's entry side effect, (3) run `afterwards`. If anything fails, already-changed items are restored.
    */
   private async changeStatuses(
     items: Item[],
@@ -137,6 +125,7 @@ export class LaundryService {
       for (const item of items) {
         await this.statusUpdater.updateStatus(item.id, targets.get(item.id)!);
         applied.push(item);
+        await this.itemMachine.enter(item, targets.get(item.id)!); // e.g. entering IRONING joins the queue
       }
       await afterwards();
     } catch (err) {
