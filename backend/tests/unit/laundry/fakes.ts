@@ -31,7 +31,9 @@ export class FakeCareRules implements CareRules {
 
 export class FakeIroningQueue implements IroningQueue {
   enqueued: Array<[number, number]> = [];
+  failForItemIds = new Set<number>();
   async enqueue(userId: number, itemId: number): Promise<void> {
+    if (this.failForItemIds.has(itemId)) throw new Error(`enqueue failed for item ${itemId}`);
     this.enqueued.push([userId, itemId]);
   }
 }

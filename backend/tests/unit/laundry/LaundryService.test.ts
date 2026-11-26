@@ -187,6 +187,17 @@ describe('LaundryService', () => {
       expect((await loadRepo.findById(load.id))!.stage).toBe(LoadStage.PENDING);
     });
 
+    it('restores the statuses and the stage if joining the ironing queue fails', async () => {
+      const linen = await dirtyItem('white', 'linen');
+      const load = await pendingLoad(linen);
+      await service.advanceLoad(USER, load.id);
+      await service.advanceLoad(USER, load.id);
+      queue.failForItemIds.add(linen.id);
+      await expect(service.advanceLoad(USER, load.id)).rejects.toThrow('enqueue failed');
+      expect(await statusOf(linen.id)).toBe(ItemStatus.DRYING);
+      expect((await loadRepo.findById(load.id))!.stage).toBe(LoadStage.DRYING);
+    });
+
     it('a finished load frees its items for a new load', async () => {
       const a = await dirtyItem('white', 'cotton');
       const load = await pendingLoad(a);
